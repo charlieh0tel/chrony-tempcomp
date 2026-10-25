@@ -14,9 +14,9 @@ get_hwmon() {
     local scale=$3
     local dir="${hwmon_map["$sensor"]}"
     local value_file="${dir}/${what}"
+    local value
     value=$(< "${value_file}")
-    scaled=$(echo "scale=3; $value / $scale" | bc)
-    echo $scaled
+    echo "scale=3; $value / $scale" | bc
 }
 
 print_header() {
@@ -24,11 +24,12 @@ print_header() {
 }
 
 print_one() {
-    local t=$(date +%s)
-    local acpitz=$(get_hwmon "acpitz" temp1_input 1000)
-    local k10temp=$(get_hwmon "k10temp" temp1_input 1000)
-    #local fam15h_power=$(get_hwmon "fam15h_power" power1_average 1000000)
-    
+    local t acpitz k10temp
+    t=$(date +%s)
+    acpitz=$(get_hwmon "acpitz" temp1_input 1000)
+    k10temp=$(get_hwmon "k10temp" temp1_input 1000)
+    #fam15h_power=$(get_hwmon "fam15h_power" power1_average 1000000)
+
     echo "${t},${acpitz},${k10temp}" #,${fam15h_power}"
 }
 
