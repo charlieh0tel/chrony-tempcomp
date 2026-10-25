@@ -22,7 +22,7 @@ import glob
 import gzip
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 
@@ -43,7 +43,7 @@ def read_log(logdir, name):
                     continue
                 p = line.split()
                 if p[0] not in days:
-                    d = datetime.strptime(p[0], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    d = datetime.strptime(p[0], "%Y-%m-%d").replace(tzinfo=UTC)
                     days[p[0]] = d.timestamp()
                 h, m, s = p[1].split(":")
                 yield days[p[0]] + int(h) * 3600 + int(m) * 60 + int(s), p
@@ -99,7 +99,7 @@ def residual(pts, Ti, F, fref):
 
 
 def utc(t):
-    return datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%d %H:%M")
+    return datetime.fromtimestamp(t, UTC).strftime("%Y-%m-%d %H:%M")
 
 
 def main():
