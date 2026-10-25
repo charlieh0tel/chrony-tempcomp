@@ -34,7 +34,7 @@ Fit, checking against the last day held out:
 
 Install it, with a backup of `/etc/chrony` and rollback if chronyd fails:
 
-    sudo ./install-points.sh tempcomp.points
+    sudo ./install_points.sh tempcomp.points
 
 The report goes to stderr.  Bins flagged "frequency moves fast here" are
 where a little sensor noise is worth a lot of ppm.
@@ -50,7 +50,7 @@ where a little sensor noise is worth a lot of ppm.
   data and `--extend-high` holds the hottest value flat.  Both are guesses;
   refit once the logs cover those temperatures.
 - chronyd exits on any comment or blank line in the points file, so
-  the script never writes one and `install-points.sh` checks for them.
+  the script never writes one and `install_points.sh` checks for them.
 - `--source` picks which reference's tracking rows to trust (default
   `PPS`).  Rows while chrony followed a network source are much noisier.
 - A board or CPU sensor beats an ambient one: on one test box the acpitz sensor

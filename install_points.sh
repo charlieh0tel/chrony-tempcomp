@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Install a tempcomp points file into chrony and restart it, rolling back on failure.
-# Usage: sudo ./install-points.sh POINTS [SENSOR] [INTERVAL]
+# Usage: sudo ./install_points.sh POINTS [SENSOR] [INTERVAL]
 #   SENSOR defaults to the acpitz thermal zone; INTERVAL to 15 s.
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
