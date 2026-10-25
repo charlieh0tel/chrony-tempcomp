@@ -31,7 +31,9 @@ MAX_COMP = 10.0  # ppm, chrony's limit in tempcomp.c
 
 def read_log(logdir, name):
     """Yield (unix time, fields) for each data row of a chrony log and its rotations."""
-    paths = glob.glob(os.path.join(logdir, name)) + glob.glob(os.path.join(logdir, name + ".*"))
+    paths = glob.glob(os.path.join(logdir, name)) + glob.glob(
+        os.path.join(logdir, name + ".*")
+    )
     if not paths:
         sys.exit(f"no {name} in {logdir}")
     days = {}  # strptime per row is most of the run time on a slow box
@@ -51,8 +53,11 @@ def read_log(logdir, name):
 
 def load(logdir, source, max_skew):
     temp = sorted((t, float(p[2])) for t, p in read_log(logdir, "tempcomp.log"))
-    track = sorted((t, float(p[4])) for t, p in read_log(logdir, "tracking.log")
-                   if (source == "any" or p[2] == source) and float(p[5]) <= max_skew)
+    track = sorted(
+        (t, float(p[4]))
+        for t, p in read_log(logdir, "tracking.log")
+        if (source == "any" or p[2] == source) and float(p[5]) <= max_skew
+    )
     if len(temp) < 2 or len(track) < 2:
         sys.exit("not enough tempcomp or tracking rows")
     tt, T = np.array(temp).T
@@ -104,29 +109,74 @@ def utc(t):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("logdir", help="chrony logdir (needs tracking.log and tempcomp.log)")
+    ap.add_argument(
+        "logdir", help="chrony logdir (needs tracking.log and tempcomp.log)"
+    )
     ap.add_argument("-o", "--output", help="points file to write (default: stdout)")
-    ap.add_argument("--source", default="PPS",
-                    help="tracking.log reference to trust, by refid or IP, or 'any' (default: PPS)")
-    ap.add_argument("--step", type=float, default=500,
-                    help="bin width in sensor units (default: 500, i.e. 0.5 C for millidegrees)")
-    ap.add_argument("--min-count", type=int, default=30, help="minimum samples per bin (default: 30)")
-    ap.add_argument("--max-gap", type=float, default=60,
-                    help="seconds from a tracking row to the nearest temperature sample (default: 60)")
-    ap.add_argument("--max-skew", type=float, default=0.05,
-                    help="drop tracking rows with skew above this, ppm (default: 0.05)")
-    ap.add_argument("--fref", type=float,
-                    help="frequency that comp=0 maps to, ppm (default: median of the data)")
-    ap.add_argument("--extend-low", type=float, metavar="TEMP",
-                    help="add points down to TEMP from a quadratic over the coolest data")
-    ap.add_argument("--extend-step", type=float, default=5000,
-                    help="spacing of --extend-low points (default: 5000)")
-    ap.add_argument("--fit-span", type=float, default=10000,
-                    help="temperature span of the coolest data --extend-low fits (default: 10000)")
-    ap.add_argument("--extend-high", type=float, metavar="TEMP",
-                    help="add a point at TEMP holding the hottest bin's value")
-    ap.add_argument("--holdout-days", type=float, default=0,
-                    help="also fit without the last N days of data and report error on them")
+    ap.add_argument(
+        "--source",
+        default="PPS",
+        help="tracking.log reference to trust, by refid or IP, or 'any' (default: PPS)",
+    )
+    ap.add_argument(
+        "--step",
+        type=float,
+        default=500,
+        help="bin width in sensor units (default: 500, i.e. 0.5 C for millidegrees)",
+    )
+    ap.add_argument(
+        "--min-count",
+        type=int,
+        default=30,
+        help="minimum samples per bin (default: 30)",
+    )
+    ap.add_argument(
+        "--max-gap",
+        type=float,
+        default=60,
+        help="seconds from a tracking row to the nearest temperature sample (default: 60)",
+    )
+    ap.add_argument(
+        "--max-skew",
+        type=float,
+        default=0.05,
+        help="drop tracking rows with skew above this, ppm (default: 0.05)",
+    )
+    ap.add_argument(
+        "--fref",
+        type=float,
+        help="frequency that comp=0 maps to, ppm (default: median of the data)",
+    )
+    ap.add_argument(
+        "--extend-low",
+        type=float,
+        metavar="TEMP",
+        help="add points down to TEMP from a quadratic over the coolest data",
+    )
+    ap.add_argument(
+        "--extend-step",
+        type=float,
+        default=5000,
+        help="spacing of --extend-low points (default: 5000)",
+    )
+    ap.add_argument(
+        "--fit-span",
+        type=float,
+        default=10000,
+        help="temperature span of the coolest data --extend-low fits (default: 10000)",
+    )
+    ap.add_argument(
+        "--extend-high",
+        type=float,
+        metavar="TEMP",
+        help="add a point at TEMP holding the hottest bin's value",
+    )
+    ap.add_argument(
+        "--holdout-days",
+        type=float,
+        default=0,
+        help="also fit without the last N days of data and report error on them",
+    )
     args = ap.parse_args()
 
     tt, T, rt, F = load(args.logdir, args.source, args.max_skew)
@@ -138,7 +188,9 @@ def main():
     log = lambda s="": print(s, file=sys.stderr)
     log(f"data   {utc(rt[0])} .. {utc(rt[-1])} UTC, {len(rt)} rows from {args.source}")
     log(f"temp   {Ti.min():g} .. {Ti.max():g}")
-    log(f"freq   {F.min():.3f} .. {F.max():.3f} ppm, sd {F.std():.4f}; fref {fref:+.3f}")
+    log(
+        f"freq   {F.min():.3f} .. {F.max():.3f} ppm, sd {F.std():.4f}; fref {fref:+.3f}"
+    )
 
     if args.holdout_days:
         cut = rt[-1] - args.holdout_days * 86400
@@ -147,8 +199,10 @@ def main():
             sys.exit("holdout leaves too little data on one side")
         pts, _ = table(Ti[train], F[train], args, fref)
         r = residual(pts, Ti[test], F[test], fref)
-        log(f"holdout from {utc(cut)}: {test.sum()} rows, freq sd {F[test].std():.4f} -> "
-            f"resid sd {r.std():.4f} ppm, max |resid| {abs(r).max():.3f}")
+        log(
+            f"holdout from {utc(cut)}: {test.sum()} rows, freq sd {F[test].std():.4f} -> "
+            f"resid sd {r.std():.4f} ppm, max |resid| {abs(r).max():.3f}"
+        )
 
     pts, bins = table(Ti, F, args, fref)
     r = residual(pts, Ti, F, fref)
@@ -157,7 +211,9 @@ def main():
     for t, f, sd, n in noisy:
         log(f"  bin {t:g}: sd {sd:.3f} ppm (n={int(n)}); frequency moves fast here")
     if np.abs(pts[:, 1]).max() > MAX_COMP:
-        log(f"WARNING: |comp| exceeds {MAX_COMP} ppm and chrony will ignore it; set --fref closer")
+        log(
+            f"WARNING: |comp| exceeds {MAX_COMP} ppm and chrony will ignore it; set --fref closer"
+        )
 
     out = "".join(f"{t:.0f} {c:.4f}\n" for t, c in pts)
     if args.output:
