@@ -299,6 +299,14 @@ read through the sensor's 0.538 °C step and noise.
   centers about 8.5 min back, the size of the delay left over.  Or heat
   from the room reaches the crystal and the sensor by paths the load
   step does not use.
+- **apu-0 weighs against chronyd's window.**  Its sensor is at the
+  crystal and its step is 0.1 °C, so little but chronyd's window should
+  be left to fit, and its readings fit far less
+  ([output](../data/smoothing-apu-0.txt)): 0.0338 ppm causal and 0.0346
+  with no delay, both at 3 min, against 0.0382 with none, as a crystal
+  1 to 3 min behind gives.  If chronyd keeps as many samples there as
+  on draws (not yet checked), its window is at most that, and most of
+  draws's delay is a path.
 - `frequency - compensation` also holds the raw reading, through the
   compensation, which favors no lag: a 1 min delay scores worse than
   none, and worse than 2 min.  These readings cannot fully separate it.

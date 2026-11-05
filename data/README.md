@@ -37,4 +37,5 @@ then cooling.  Its first lines say what it is from.  `draws-pps.txt` is
 `study/pps_step.py --bin 15` on it.  `draws-pps-chronyd.npz` is
 `study/fetch.py --days 1 draws` just after it, for `--chronyd`.
 
-`smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`.
+`smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`,
+and `smoothing-apu-0.txt` is `study/smoothing.py --step 0.1 apu-0.npz`.
