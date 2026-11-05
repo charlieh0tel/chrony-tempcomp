@@ -9,6 +9,9 @@ temperature.
   sensor reading fails when the sensor is away from the crystal, or
   noisy and coarse; how the lag is found; a filter program to feed it
   instead; and a proposal for chrony to filter the reading itself.
+- [study](study): the scripts that measure how hosts' frequency
+  follows their sensors, and [data](data): the readings they were run
+  on.
 
 ## Point table
 

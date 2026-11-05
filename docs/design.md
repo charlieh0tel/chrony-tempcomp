@@ -152,7 +152,7 @@ within two hours.  It beats the middle ground clearly only on tare.
 chronyd applies `tempcomp` to each raw sensor reading as it arrives
 (`read_timeout`, `tempcomp.c`, chrony 4.6), with no smoothing.  Hosts
 measured with chronymon's Temperature page and
-[chronymon's `tools/tempcomp-study`](https://github.com/charlieh0tel/chronymon/tree/main/tools/tempcomp-study) show that the frequency follows the
+[`study`](../study), on the hosts' data in [`data`](../data), show that the frequency follows the
 sensor through a lag, and that sensors are noisy:
 
 | Host | Sensor | Step | Reference | Lag | Held-out RMSE, no lag / lag, ppm |

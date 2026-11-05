@@ -1,0 +1,20 @@
+=== ../data/apu-0.npz: 10.3 days
+ linear    held-out RMSE, ppm, by lag in min: 0:0.0737  5:0.0732  10:0.0740  20:0.0781  30:0.0847  60:0.1124  90:0.1436  120:0.1731  180:0.2213  240:0.2568
+ linear    best 5 min: 0.0732 against 0.0737 with none, k1 -0.1202 ppm/°C
+ quadratic held-out RMSE, ppm, by lag in min: 0:0.0332  5:0.0317  10:0.0338  20:0.0438  30:0.0564  60:0.0959  90:0.1328  120:0.1649  180:0.2167  240:0.2542
+ quadratic best 5 min: 0.0317 against 0.0332 with none, k1 -0.1313 ppm/°C
+=== ../data/chronos.npz: 1.6 days
+ linear    held-out RMSE, ppm, by lag in min: 0:0.0661  5:0.0554  10:0.0495  20:0.0463  30:0.0465  60:0.0567  90:0.0726  120:0.0876  180:0.1103  240:0.1280
+ linear    best 20 min: 0.0463 against 0.0661 with none, k1 -0.1859 ppm/°C
+ quadratic held-out RMSE, ppm, by lag in min: 0:0.0679  5:0.0565  10:0.0505  20:0.0467  30:0.0456  60:0.0510  90:0.0684  120:0.0853  180:0.1158  240:0.1531
+ quadratic best 30 min: 0.0456 against 0.0679 with none, k1 -0.1935 ppm/°C
+=== ../data/draws.npz: 9.2 days
+ linear    held-out RMSE, ppm, by lag in min: 0:0.0579  5:0.0546  10:0.0533  20:0.0585  30:0.0706  60:0.1212  90:0.1718  120:0.2168  180:0.2908  240:0.3454
+ linear    best 10 min: 0.0533 against 0.0579 with none, k1 -0.1727 ppm/°C
+ quadratic held-out RMSE, ppm, by lag in min: 0:0.0290  5:0.0220  10:0.0195  20:0.0328  30:0.0527  60:0.1129  90:0.1674  120:0.2154  180:0.2912  240:0.3460
+ quadratic best 10 min: 0.0195 against 0.0290 with none, k1 -0.1773 ppm/°C
+=== ../data/tare.npz: 3.4 days
+ linear    held-out RMSE, ppm, by lag in min: 0:0.7332  5:0.7050  10:0.6706  20:0.6146  30:0.5735  60:0.5374  90:0.5902  120:0.6761  180:0.8553  240:1.0153
+ linear    best 60 min: 0.5374 against 0.7332 with none, k1 -0.0827 ppm/°C
+ quadratic held-out RMSE, ppm, by lag in min: 0:0.6871  5:0.6558  10:0.6122  20:0.5372  30:0.4771  60:0.3792  90:0.3669  120:0.3981  180:0.5073  240:0.6286
+ quadratic best 90 min: 0.3669 against 0.6871 with none, k1 -0.1024 ppm/°C

@@ -1,0 +1,12 @@
+=== ../data/apu-0.npz: 10.3 days
+ linear    static held-out RMSE 0.0737 ppm; best model nb 2 nf 1 dead time 0 min: 0.0708, gain -0.1279 ppm/°C, step reached at 5 min 0.88, 30 min 0.89, 120 min 0.93
+ quadratic static held-out RMSE 0.0332 ppm; best model nb 2 nf 2 dead time 0 min: 0.0274, gain -0.1436 ppm/°C, step reached at 5 min 0.84, 30 min 0.91, 120 min 0.92
+=== ../data/chronos.npz: 1.6 days
+ linear    static held-out RMSE 0.0661 ppm; best model nb 2 nf 2 dead time 0 min: 0.0408, gain -0.1984 ppm/°C, step reached at 5 min 0.47, 30 min 0.73, 120 min 0.89
+ quadratic static held-out RMSE 0.0679 ppm; best model nb 2 nf 2 dead time 0 min: 0.0368, gain -0.2019 ppm/°C, step reached at 5 min 0.46, 30 min 0.72, 120 min 0.90
+=== ../data/draws.npz: 9.2 days
+ linear    static held-out RMSE 0.0579 ppm; best model nb 2 nf 2 dead time 0 min: 0.0503, gain -0.1805 ppm/°C, step reached at 5 min 0.87, 30 min 0.91, 120 min 0.94
+ quadratic static held-out RMSE 0.0290 ppm; best model nb 2 nf 2 dead time 0 min: 0.0193, gain -0.1786 ppm/°C, step reached at 5 min 0.79, 30 min 0.95, 120 min 0.98
+=== ../data/tare.npz: 3.4 days
+ linear    static held-out RMSE 0.7332 ppm; best model nb 2 nf 2 dead time 30 min: 0.5141, gain -0.0641 ppm/°C, step reached at 5 min -0.00, 30 min 0.10, 120 min 1.08
+ quadratic static held-out RMSE 0.6871 ppm; best model nb 1 nf 2 dead time 15 min: 0.2632, gain -0.1019 ppm/°C, step reached at 5 min -0.00, 30 min 0.12, 120 min 0.94
