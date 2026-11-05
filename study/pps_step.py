@@ -30,9 +30,9 @@ MIN_BIN_SHARE = 0.5
 # clean edges are not picked at.
 REJECT = 5.0
 MIN_DEVIATION = 1e-8
-# Rows over which the realtime clock's rate against the raw is taken.
+# Rows over which the stamping clock's rate against the raw is taken.
 RATE_ROWS = 64
-# A read this long after its edge (ns), or before it, means the realtime
+# A read this long after its edge (ns), or before it, means the stamping
 # clock stepped between them or the reader stalled: the row is dropped.
 MAX_LATENCY = NANOSECONDS // 2
 # Rows the load is median-filtered over, the load above which the CPU
@@ -61,9 +61,10 @@ class Run:
     meta: dict[str, str]  # The header's `key=value` lines, except sensors.
     names: dict[str, str]  # Each sensor's path to the kernel's name for it.
     seq: np.ndarray
-    real_edge: np.ndarray  # ns, int64, as for the two reads below.
-    real_read: np.ndarray
+    stamp_edge: np.ndarray  # ns, int64, in the clock that stamped the edge.
+    stamp_read: np.ndarray  # That clock, read with raw_read.
     raw_read: np.ndarray
+    unix_read: np.ndarray  # CLOCK_REALTIME just after those.
     pair: np.ndarray  # ns, how far apart the two reads could be.
     busy: np.ndarray  # Fraction of the CPUs' time busy since the last row.
     sensors: dict[str, np.ndarray]  # Path to degrees Celsius, NaN if unread.
@@ -149,9 +150,10 @@ def load_run(path: str) -> Run:
         meta,
         names,
         integers("seq"),
-        integers("real_edge_ns"),
-        integers("real_read_ns"),
+        integers("stamp_edge_ns"),
+        integers("stamp_read_ns"),
         integers("raw_read_ns"),
+        integers("unix_read_ns"),
         integers("pair_ns"),
         np.array([float(value) for value in column["cpu_busy"]]),
         {
@@ -166,13 +168,13 @@ def load_run(path: str) -> Run:
 
 def edge_times(run: Run) -> tuple[np.ndarray, np.ndarray]:
     """(the edges' raw times in seconds from the first read, which rows
-    they are): each read, less the time back to its edge at the realtime
+    they are): each read, less the time back to its edge at the stamping
     clock's rate against the raw."""
     raw = run.raw_read - run.raw_read[0]
-    real = run.real_read - run.real_read[0]
+    stamp = run.stamp_read - run.stamp_read[0]
     rows = min(RATE_ROWS, len(raw) - 1)
-    rate = np.median((raw[rows:] - raw[:-rows]) / (real[rows:] - real[:-rows]))
-    latency = run.real_read - run.real_edge
+    rate = np.median((raw[rows:] - raw[:-rows]) / (stamp[rows:] - stamp[:-rows]))
+    latency = run.stamp_read - run.stamp_edge
     good = (latency >= 0) & (latency < MAX_LATENCY)
     return (raw[good] - latency[good] * rate) / NANOSECONDS, np.flatnonzero(good)
 
@@ -203,7 +205,9 @@ def bin_run(run: Run, width: float = BIN) -> Bins:
     sensors = {name: np.full(count, np.nan) for name in run.sensors}
     deviations = []
     dropped = 0
-    origin = run.real_edge[0]
+    # Where each edge is in Unix time, from the read after it.
+    unix_edge = run.unix_read - (run.stamp_read - run.stamp_edge)
+    origin = unix_edge[0]
     for i in range(count):
         members = np.flatnonzero(index == i)
         if len(members) < max(MIN_BIN_SHARE * width, 3):
@@ -212,8 +216,8 @@ def bin_run(run: Run, width: float = BIN) -> Bins:
         deviations.append(deviation)
         dropped += lost
         # Unix seconds at the bin's center, from its edges' mean.
-        real = (run.real_edge[rows[members]] - origin).mean() / NANOSECONDS
-        unix[i] = origin / NANOSECONDS + real
+        offset = (unix_edge[rows[members]] - origin).mean() / NANOSECONDS
+        unix[i] = origin / NANOSECONDS + offset
         for name, values in run.sensors.items():
             read = values[rows[members]]
             if not np.all(np.isnan(read)):
@@ -378,7 +382,7 @@ def report(run: Run, bins: Bins, npz: str | None) -> None:
         f"{edges} edges over {bins.t[-1] / 3600:.2f} h, {lost} not read,"
         f" {bins.dropped} dropped; edge deviation {bins.jitter * 1e9:.0f} ns,"
         f" median clock pair {np.median(run.pair):.0f} ns,"
-        f" median read {np.median(run.real_read - run.real_edge) / 1e6:.1f} ms"
+        f" median read {np.median(run.stamp_read - run.stamp_edge) / 1e6:.1f} ms"
     )
     print(
         f"frequency {np.nanmin(bins.ppm):+.3f} to {np.nanmax(bins.ppm):+.3f} ppm,"

@@ -33,7 +33,9 @@ these files.
 
 `draws-pps.csv` is `study/pps_raw.py` on draws, 2026-11-05 17:14:50 to
 19:16 UTC: 30 min idle, `stress-ng --cpu 0` for 30 min from 17:45:16,
-then cooling.  Its first lines say what it is from.  `draws-pps.txt` is
+then cooling.  Its first lines say what it is from; `stamp_*` were
+recorded as `real_*`, and `unix_read_ns` is `stamp_read_ns`, as
+`CLOCK_REALTIME` stamped these edges.  `draws-pps.txt` is
 `study/pps_step.py --bin 15` on it.  `draws-pps-chronyd.npz` is
 `study/fetch.py --days 1 draws` just after it, for `--chronyd`.
 

@@ -55,8 +55,9 @@ PAIR_TRIES = 8
 
 # A row's columns, before one column per sensor, named by its path:
 # - seq: the kernel's count of edges
-# - real_edge_ns: the edge, as the kernel stamped it, CLOCK_REALTIME
-# - real_read_ns, raw_read_ns: the two clocks read together after it
+# - stamp_edge_ns: the edge, in the clock that stamped it
+# - stamp_read_ns, raw_read_ns: that clock and the raw read together after it
+# - unix_read_ns: CLOCK_REALTIME just after them, to place the row in time
 # - pair_ns: how far apart that reading could be (raw clock, read either
 #   side of the realtime clock)
 # - sensors_ns: how long reading this row's sensors took
@@ -64,9 +65,10 @@ PAIR_TRIES = 8
 # - cpu_busy: fraction of the CPUs' time busy since the last row
 COLUMNS = (
     "seq",
-    "real_edge_ns",
-    "real_read_ns",
+    "stamp_edge_ns",
+    "stamp_read_ns",
     "raw_read_ns",
+    "unix_read_ns",
     "pair_ns",
     "sensors_ns",
     "clocksource",
@@ -93,16 +95,16 @@ def read_assert(path: str) -> tuple[int, int]:
     return parse_assert(text)
 
 
-def read_clocks() -> tuple[int, int, int]:
-    """(realtime, raw, width), all ns: the tightest of a few readings of
-    the realtime clock between two of the raw clock."""
+def read_clocks(stamp_clock: int) -> tuple[int, int, int]:
+    """(stamping clock, raw, width), all ns: the tightest of a few readings
+    of the stamping clock between two of the raw clock."""
     best = None
     for _ in range(PAIR_TRIES):
         before = time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)
-        real = time.clock_gettime_ns(time.CLOCK_REALTIME)
+        stamp = time.clock_gettime_ns(stamp_clock)
         after = time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)
         if best is None or after - before < best[2]:
-            best = (real, (before + after) // 2, after - before)
+            best = (stamp, (before + after) // 2, after - before)
     assert best is not None
     return best
 
@@ -154,66 +156,81 @@ def busy_fraction(before: tuple[int, int], after: tuple[int, int]) -> float:
     return (after[0] - before[0]) / total if total > 0 else 0.0
 
 
-def write_header(file, device: str, sensors: list[str]) -> None:
+class SysfsSource:
+    """Edges from a PPS device's `assert` file, polled just after each is
+    due; the kernel stamps them in CLOCK_REALTIME."""
+
+    stamp_clock = time.CLOCK_REALTIME
+
+    def __init__(self, device: str) -> None:
+        self.device = device
+        self.assert_path = os.path.join(device, "assert")
+        self.stamp = 0
+        # The edge already there may be old: only a later one is a row.
+        self.sequence = read_assert(self.assert_path)[1]
+
+    def header(self) -> list[tuple[str, str]]:
+        return [
+            ("device", self.device),
+            ("pps_name", read_text(os.path.join(self.device, "name"))),
+            ("pps_path", read_text(os.path.join(self.device, "path"))),
+        ]
+
+    def next_edge(self) -> tuple[int, int]:
+        """Sleep until a new edge shows, then return (stamp, sequence)."""
+        if self.stamp:
+            pause = self.stamp / NANOSECONDS + 1 + WAKE_MARGIN - time.time()
+            if pause > 0:
+                time.sleep(pause)
+        overdue = False
+        started = time.monotonic()
+        while True:
+            stamp, sequence = read_assert(self.assert_path)
+            if sequence != self.sequence:
+                if overdue:
+                    print("edges again", file=sys.stderr)
+                self.stamp, self.sequence = stamp, sequence
+                return stamp, sequence
+            if not overdue and time.monotonic() - started > OVERDUE:
+                overdue = True
+                print(f"no edge for {OVERDUE} s", file=sys.stderr)
+            time.sleep(POLL_OVERDUE if overdue else POLL)
+
+
+def write_header(file, source, sensors: list[str]) -> None:
     """Comment lines saying what the rows are from, then the column names."""
-    for key, value in (
+    for key, value in [
         ("host", platform.node()),
         ("kernel", platform.release()),
         ("boot_id", read_text(BOOT_ID)),
-        ("device", device),
-        ("pps_name", read_text(os.path.join(device, "name"))),
-        ("pps_path", read_text(os.path.join(device, "path"))),
-    ):
+        *source.header(),
+    ]:
         file.write(f"# {key}={value}\n")
     for path in sensors:
         file.write(f"# sensor={path} {sensor_name(path)}\n")
 
 
-def wait_for_edge(assert_path: str, last_stamp: int, last_sequence: int):
-    """Sleep until a new edge shows, then return (stamp, sequence)."""
-    if last_stamp:
-        due = last_stamp / NANOSECONDS + 1 + WAKE_MARGIN
-        pause = due - time.time()
-        if pause > 0:
-            time.sleep(pause)
-    overdue = False
-    started = time.monotonic()
-    while True:
-        stamp, sequence = read_assert(assert_path)
-        if sequence != last_sequence:
-            if overdue:
-                print("edges again", file=sys.stderr)
-            return stamp, sequence
-        if not overdue and time.monotonic() - started > OVERDUE:
-            overdue = True
-            print(f"no edge for {OVERDUE} s", file=sys.stderr)
-        time.sleep(POLL_OVERDUE if overdue else POLL)
-
-
 def record(
     output: str,
-    device: str = DEVICE,
+    source,
     sensor_paths: list[str] | None = None,
     edges: int = 0,
 ) -> None:
-    """Write a row per edge to `output`, a new file, until stopped, or for
-    `edges` edges if not zero."""
-    assert_path = os.path.join(device, "assert")
+    """Write a row per edge of `source` to `output`, a new file, until
+    stopped, or for `edges` edges if not zero."""
     paths = find_sensors() if sensor_paths is None else sensor_paths
     sensors = Sensors(paths)
     with open(output, "x", newline="") as file:
-        write_header(file, device, paths)
+        write_header(file, source, paths)
         writer = csv.writer(file, lineterminator="\n")
         writer.writerow(list(COLUMNS) + paths)
         file.flush()
-        # The edge already there may be old: only a later one is a row.
-        _, sequence = read_assert(assert_path)
-        stamp = 0
         cpu = read_cpu_times()
         written = 0
         while not edges or written < edges:
-            stamp, sequence = wait_for_edge(assert_path, stamp, sequence)
-            real, raw, width = read_clocks()
+            stamp, sequence = source.next_edge()
+            stamp_read, raw, width = read_clocks(source.stamp_clock)
+            unix = time.clock_gettime_ns(time.CLOCK_REALTIME)
             started = time.monotonic_ns()
             readings = sensors.read()
             took = time.monotonic_ns() - started
@@ -222,8 +239,9 @@ def record(
                 [
                     sequence,
                     stamp,
-                    real,
+                    stamp_read,
                     raw,
+                    unix,
                     width,
                     took,
                     read_text(CLOCKSOURCE),
@@ -245,7 +263,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     try:
-        record(args.output, args.device, edges=args.edges)
+        record(args.output, SysfsSource(args.device), edges=args.edges)
     except KeyboardInterrupt:
         pass
 

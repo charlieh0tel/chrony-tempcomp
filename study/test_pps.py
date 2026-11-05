@@ -58,6 +58,7 @@ def simulate(
                     real(t + stamp_error),
                     real(t + read_after),
                     int(raw * NS),
+                    real(t + read_after),
                     100,
                     1000,
                     clocksources(t) if clocksources else "tsc",
@@ -134,7 +135,9 @@ def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
     thread.start()
     output = tmp_path / "run.csv"
     try:
-        pps_raw.record(str(output), str(device), [str(sensor)], edges=3)
+        pps_raw.record(
+            str(output), pps_raw.SysfsSource(str(device)), [str(sensor)], edges=3
+        )
     finally:
         stop.set()
         thread.join()
@@ -146,7 +149,9 @@ def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
     assert np.all(np.diff(run.seq) > 0)
     assert np.all(np.diff(run.raw_read) > 0)
     with pytest.raises(FileExistsError):
-        pps_raw.record(str(output), str(device), [str(sensor)], edges=1)
+        pps_raw.record(
+            str(output), pps_raw.SysfsSource(str(device)), [str(sensor)], edges=1
+        )
 
 
 def test_frequency_has_chronyd_sign_and_no_chronyd_in_it(tmp_path):
@@ -193,8 +198,8 @@ def test_realtime_step_between_edge_and_read_is_dropped(tmp_path):
     path = tmp_path / "run.csv"
     simulate(path, lambda t: 2.0, seconds=300)
     run = pps_step.load_run(str(path))
-    run.real_read[50] += NS
-    run.real_read[60] -= NS
+    run.stamp_read[50] += NS
+    run.stamp_read[60] -= NS
     assert len(pps_step.edge_times(run)[0]) == 298
 
 
