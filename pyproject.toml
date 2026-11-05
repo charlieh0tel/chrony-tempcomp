@@ -1,0 +1,28 @@
+[project]
+name = "chrony-tempcomp"
+version = "0.1.0"
+description = "Temperature compensation for chrony"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.5.4",
+    "scipy>=1.18.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["study"]
+
+[tool.mypy]
+files = ["study/pps_raw.py", "study/pps_step.py"]
+ignore_missing_imports = true
+mypy_path = "study"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]

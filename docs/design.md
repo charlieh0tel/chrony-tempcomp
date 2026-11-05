@@ -229,11 +229,14 @@ chronyd:
 The lag to filter `tempcomp`'s temperature by is then the physical
 one, measured this way; the proposal for chrony's guidance says so.
 
-The quickest check, before any program: a few lines reading
-`/sys/class/pps/pps0/assert` and `CLOCK_MONOTONIC_RAW` together on
-chronos, logging the raw interval per edge, with a CPU load step
-(`stress-ng --cpu 0` for 20 to 30 min) to see how fast the crystal
-responds.
+The quickest check, before any program: `study/pps_raw.py` reads a
+PPS device's `assert` and `CLOCK_MONOTONIC_RAW` together on draws,
+and `study/pps_step.py` gets the frequency from them, with a CPU load
+step (`stress-ng --cpu 0`) to see how fast the crystal responds.  The
+load should last about 30 min and the cooling longer, with a settled
+baseline first: a tau near 30 min would not finish within the load.
+A jump in frequency the moment the load changes is not thermal (supply
+or load pulling the oscillator) and is fitted apart from the lag.
 
 ## Phase 1: a fixed filter
 
@@ -471,4 +474,4 @@ requests.
 - Learning by daily refit or by Kalman filter.
 - Proposal for chrony: ask before or after the phase 1 experiment.
 - Several sensors: which hosts to record, and for how long.
-- Measurements: the raw-clock PPS check on chronos, with a load step.
+- Measurements: the raw-clock PPS check on draws, with a load step.

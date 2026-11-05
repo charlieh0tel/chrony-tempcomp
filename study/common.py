@@ -55,12 +55,12 @@ def load(path):
     return t, u - u[good].mean(), y, good
 
 
-def lag(u, tau):
-    """u through a first-order lag of time constant `tau` seconds,
-    started settled at the first reading."""
+def lag(u, tau, step=STEP):
+    """u, samples `step` seconds apart, through a first-order lag of time
+    constant `tau` seconds, started settled at the first reading."""
     if tau <= 0:
         return u
-    a = np.exp(-STEP / tau)
+    a = np.exp(-step / tau)
     return lfilter([1 - a], [1, -a], u, zi=[a * u[0]])[0]
 
 

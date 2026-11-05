@@ -31,3 +31,31 @@ every few minutes.
 
 - `apumon.sh` prints the acpitz and k10temp sensors at 1 Hz;
   `filter_temps.py` drops corrupt rows from such a log, `temps.csv`.
+
+## The crystal's frequency, without chronyd
+
+`fetch.py` and the fits above see the crystal through chronyd's
+estimate.  These measure it directly (the design's "Measurements"):
+PPS edges against `CLOCK_MONOTONIC_RAW`, with every sensor and the
+CPU's load.
+
+    python3 pps_raw.py -o draws-pps.csv                # on the host
+    python3 fetch.py --days 1 draws                    # optional, chronyd's view
+    python3 pps_step.py draws-pps.csv --chronyd draws.npz
+
+- `pps_raw.py`, standard library only, records a row per edge.  It
+  reads sysfs, `/proc` and the clocks, needs no privileges and sends
+  chronyd nothing.
+- `pps_step.py` turns the rows into the frequency per minute, positive
+  fast (chronyd's sign: `client.c`, `chrony.conf.adoc`, chrony 4.6), and
+  finds the load steps from the CPU's load.  For each step it fits how
+  the frequency and each sensor moved, and for the whole run it scans
+  each sensor's lag behind which the frequency best follows, by the
+  same blocked cross-validation.  Given chronyd's readings, it scans
+  chronyd's lag behind the raw frequency too: that part of a fitted lag
+  is chronyd's estimator, not the crystal.
+
+A step's tau range assumes independent noise, so it is optimistic; a
+step's start also carries any settling left from the step before.
+
+Tests: `uv run pytest`.
