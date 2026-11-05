@@ -6,7 +6,7 @@ next.
 
 ## Done
 
-- `chrony_tempcomp.py` fixed: it fits the clock's own frequency
+- `tools/chrony_tempcomp.py` fixed: it fits the clock's own frequency
   (tracking.log's frequency less tempcomp.log's compensation) and
   writes the table against the drift (`comp = fref - own`), per
   chrony 4.6's `local.c`.  Before, a table had the drift's own sign

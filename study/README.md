@@ -28,3 +28,6 @@ it, are in [`data`](../data).
 Readings are averaged to five minutes and the frequency interpolated
 across gaps of up to half an hour, as an NTP-only chronyd updates it
 every few minutes.
+
+- `apumon.sh` prints the acpitz and k10temp sensors at 1 Hz;
+  `filter_temps.py` drops corrupt rows from such a log, `temps.csv`.

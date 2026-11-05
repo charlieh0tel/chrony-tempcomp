@@ -4,7 +4,9 @@ Temperature compensation for [chrony](https://chrony-project.org/),
 from chrony's own logs, for a clock whose oscillator drifts with
 temperature.
 
-- `chrony_tempcomp.py` fits a `tempcomp` point table (below).
+- [`tools/chrony_tempcomp.py`](tools/chrony_tempcomp.py) fits a
+  `tempcomp` point table and `tools/install_points.sh` installs it
+  (below).
 - [docs/design.md](docs/design.md): why chrony's `tempcomp` fed a raw
   sensor reading fails when the sensor is away from the crystal, or
   noisy and coarse; how the lag is found; a filter program to feed it
@@ -43,12 +45,12 @@ are not always quadratic: one test box's has a +3 ppm anomaly between 80.5 and
 
 Fit, checking against the last day held out:
 
-    ./chrony_tempcomp.py /tmp/chronylogs --holdout-days 1 \
+    tools/chrony_tempcomp.py /tmp/chronylogs --holdout-days 1 \
         --extend-low 50000 --extend-high 90000 -o tempcomp.points
 
 Install it, with a backup of `/etc/chrony` and rollback if chronyd fails:
 
-    sudo ./install_points.sh tempcomp.points
+    sudo tools/install_points.sh tempcomp.points
 
 The report goes to stderr.  Bins flagged "frequency moves fast here" are
 where a little sensor noise is worth a lot of ppm.

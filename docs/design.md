@@ -1,7 +1,7 @@
 # chrony-tempcomp: design
 
 chrony-tempcomp fits chrony's `tempcomp` from chrony's own logs
-(`chrony_tempcomp.py`, a point table) and is to grow a small daemon
+(`tools/chrony_tempcomp.py`, a point table) and is to grow a small daemon
 and CLI that feed `tempcomp` a temperature filtered to match how the
 crystal actually follows the sensor, and a proposal to chrony for the
 same filter built in.  [chronymon](https://github.com/charlieh0tel/chronymon)
