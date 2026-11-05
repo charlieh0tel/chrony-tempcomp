@@ -238,6 +238,36 @@ baseline first: a tau near 30 min would not finish within the load.
 A jump in frequency the moment the load changes is not thermal (supply
 or load pulling the oscillator) and is fitted apart from the lag.
 
+### First result: draws, 2026-11-05
+
+One load step, 30 min of `stress-ng --cpu 0` on an idle host, with 30
+min before and 60 min after ([data](../data/README.md)).  The sensor
+went from 53 to 80 °C with a time constant of about 2.3 min.  The raw
+frequency fell 1.3 ppm within 2 min, then climbed 0.7 ppm under load;
+when the load ended it fell again, 0.7 ppm within 1 min, then climbed.
+
+- **The crystal lags the sensor by about 1 min, not 10.**  A dip both
+  ways is what one curve with a turn in it does.  Fitted on one side of
+  the load's end and predicting the other, the frequency's parabola on
+  the sensor through a lag has its least error at 0.75 to 1 min: 0.11
+  to 0.13 ppm, the noise of a 15 s bin (0.133 ppm).  A straight line
+  does no better than 0.40 ppm at any lag.
+- **chronyd's estimator adds no lag here.**  chronyd's own frequency
+  matches the raw one to +0.004 ppm (median), spread 0.052 ppm, with
+  its best lag behind the raw at 0 of the 1 min grid.  So on a PPS host
+  the estimator does not explain a fitted lag, as was suggested above.
+- **The curve turns at 68.6 °C on the sensor**, as
+  `0.0057 (T - 68.6)^2 + 3.30` ppm through a 1 min lag.  draws's
+  `tempcomp` line, fitted only below 61 °C, already has its turn at
+  68.5 °C and a depth of 1.19 ppm.  The slope at 55 °C is -0.16 ppm/°C,
+  against the -0.17 of 9 days' readings.
+
+Not settled.  This is one step on one host, driven through the CPU, so
+it shows the fast path from the SoC to the crystal; a slow path from
+the room could not show in two hours.  The 10 min this host's readings
+fit ("Why") is neither this 1 min nor chronyd's: smoothing of the
+sensor's 0.538 °C steps is the remaining candidate, not yet tested.
+
 ## Phase 1: a fixed filter
 
 - Read the sensor (`/sys/.../temp*_input`) every `period` seconds.
@@ -474,4 +504,5 @@ requests.
 - Learning by daily refit or by Kalman filter.
 - Proposal for chrony: ask before or after the phase 1 experiment.
 - Several sensors: which hosts to record, and for how long.
-- Measurements: the raw-clock PPS check on draws, with a load step.
+- Measurements: why draws's readings fit 10 min where its crystal lags
+  1 min; the same check on another host (chronos, once it is ready).

@@ -290,6 +290,36 @@ def test_scan_lags_refuses_too_little_or_flat():
     assert pps_step.scan_lags(np.arange(10.0), np.arange(10.0), 60.0) is None
 
 
+def test_cross_predict_recovers_a_lag_on_a_curve_with_a_turn():
+    """The frequency dips going both ways, as it does crossing the turn of
+    a parabola: no straight line does this, one curve through a lag does."""
+    rng = np.random.default_rng(SEED)
+    width = 15.0
+    t = np.arange(0.0, 7200.0, width)
+    load_off = 3600.0
+    u = 55 + 25 * np.where(
+        t < 1800,
+        0.0,
+        np.where(
+            t < load_off,
+            1 - np.exp(-(t - 1800) / 150),
+            np.exp(-(t - load_off) / 150),
+        ),
+    )
+    crystal = pps_step.lag(u, 60.0, width)
+    y = 0.0055 * (crystal - 68.6) ** 2 + 3.3 + rng.normal(0, 0.02, len(t))
+    cross = pps_step.cross_predict(t, u, y, load_off, width)
+    assert pps_step.CROSS_LAGS[cross.best] == pytest.approx(1, abs=0.25)
+    assert cross.minimum == pytest.approx(68.6, abs=0.5)
+    assert cross.heating_to_cooling[cross.best] < 0.05
+    assert cross.heating_to_cooling[0] > cross.heating_to_cooling[cross.best]
+
+
+def test_cross_predict_needs_both_sides():
+    t = np.arange(100.0)
+    assert pps_step.cross_predict(t, t, t, 1000.0, 1.0) is None
+
+
 def test_chronyd_own_subtracts_compensation_and_leaves_gaps(tmp_path):
     path = tmp_path / "host.npz"
     at = np.array([0.0, 60.0, 120.0, 5000.0, 5060.0])

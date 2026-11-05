@@ -1,0 +1,47 @@
+draws boot e06d1065-cded-436b-8912-bf68b5899e35
+7326 edges over 2.04 h, 0 not read, 69 dropped; edge deviation 857 ns, median clock pair 1666 ns, median read 5.5 ms
+frequency +3.034 to +5.120 ppm, 488 of 489 bins of 15 s
+2 load steps
+load on at 30.5 min:
+  frequency: tau 0.5 min (0.5 to 0.5), from +4.668 jump +0.000 then -0.834 ppm, rms 0.221
+  frequency, with jump: tau 29.1 min (21.3 to 46.4), from +4.673 jump -1.289 then +1.216 ppm, rms 0.149
+  /sys/class/hwmon/hwmon0/temp1_input (cpu_thermal): tau 2.3 min (2.2 to 2.4), from +53.407 jump +0.000 then +25.964 degrees, rms 1.083
+  /sys/class/thermal/thermal_zone0/temp (cpu-thermal): tau 2.3 min (2.2 to 2.4), from +53.383 jump +0.000 then +25.977 degrees, rms 1.087
+load off at 60.5 min:
+  frequency: tau 13.8 min (12.2 to 15.2), from +3.790 jump +0.000 then +0.605 ppm, rms 0.202
+  frequency, with jump: tau 7.4 min (6.8 to 7.9), from +3.842 jump -0.604 then +1.134 ppm, rms 0.178
+  /sys/class/hwmon/hwmon0/temp1_input (cpu_thermal): tau 2.1 min (1.9 to 2.2), from +77.473 jump +0.000 then -22.293 degrees, rms 2.323
+  /sys/class/thermal/thermal_zone0/temp (cpu-thermal): tau 2.1 min (1.9 to 2.2), from +77.463 jump +0.000 then -22.296 degrees, rms 2.321
+frequency's curve on each sensor through a lag, fitted on one side of the load's end, RMSE on the other (ppm), by lag in min:
+  /sys/class/hwmon/hwmon0/temp1_input (cpu_thermal):
+     0.00  0.137  0.719
+     0.25  0.128  0.377
+     0.50  0.118  0.181
+     0.75  0.112  0.132
+     1.00  0.111  0.153
+     1.25  0.113  0.190
+     1.50  0.117  0.227
+     2.00  0.128  0.289
+     3.00  0.158  0.371
+     5.00  0.221  0.450
+    10.00  0.351  0.496
+    15.00  0.449  0.523
+    20.00  0.520  0.570
+    30.00  0.599  0.774
+    best 0.75 min, curve turns at 68.6 degrees C
+  /sys/class/thermal/thermal_zone0/temp (cpu-thermal):
+     0.00  0.136  0.733
+     0.25  0.127  0.383
+     0.50  0.117  0.182
+     0.75  0.112  0.132
+     1.00  0.110  0.152
+     1.25  0.112  0.190
+     1.50  0.116  0.227
+     2.00  0.128  0.289
+     3.00  0.159  0.371
+     5.00  0.221  0.449
+    10.00  0.353  0.496
+    15.00  0.451  0.524
+    20.00  0.523  0.572
+    30.00  0.601  0.782
+    best 0.75 min, curve turns at 68.6 degrees C

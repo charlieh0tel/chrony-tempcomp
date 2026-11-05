@@ -44,6 +44,10 @@ MIN_RUN = 300
 STEP_TAUS = np.geomspace(30.0, 4 * 3600.0, 200)
 # Lags tried against a whole run, in minutes.
 LAGS = [0, 1, 2, 3, 5, 7, 10, 15, 20, 30, 45, 60, 90, 120]
+# Lags tried cross-predicting heating and cooling, in minutes, and the
+# degree of the frequency's curve against the temperature through the lag.
+CROSS_LAGS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5, 10, 15, 20, 30]
+CROSS_DEGREE = 2
 # Good bins below which held-out folds are too short to mean anything.
 MIN_SCAN_BINS = 60
 # chronyd's readings further than this from a bin, in seconds, don't count.
@@ -91,6 +95,17 @@ class StepFit:
     jump: float
     amplitude: float
     rms: float
+
+
+@dataclass
+class CrossPrediction:
+    """Frequency's curve against the temperature through a lag, fitted on
+    one side of the load's end and judged on the other."""
+
+    heating_to_cooling: list[float]  # RMSE, ppm, one per CROSS_LAGS.
+    cooling_to_heating: list[float]  # The same, the other way.
+    best: int  # Index into CROSS_LAGS, by the worse of the two.
+    minimum: float  # Where the best lag's curve, fitted to all, turns.
 
 
 @dataclass
@@ -291,6 +306,32 @@ def scan_lags(u: np.ndarray, y: np.ndarray, width: float) -> LagScan | None:
     return LagScan(scores, best, float(huber_fit(x[good], y[good])[1]))
 
 
+def cross_predict(
+    t: np.ndarray, u: np.ndarray, y: np.ndarray, load_off: float, width: float
+) -> CrossPrediction | None:
+    """Fit y on u through each lag before the load ends and predict after,
+    and the other way.  Both sides cross the same temperatures, so this
+    interpolates, where a held-out fold of a step run would extrapolate:
+    a whole fold of it can be hotter than all the rest."""
+    known = ~np.isnan(u)
+    good = known & ~np.isnan(y)
+    heating, cooling = good & (t < load_off), good & (t >= load_off)
+    if heating.sum() <= CROSS_DEGREE or cooling.sum() <= CROSS_DEGREE:
+        return None
+    filled = np.interp(np.arange(len(u)), np.flatnonzero(known), u[known])
+
+    def error(x, fitted, judged):
+        curve = np.polyfit(x[fitted], y[fitted], CROSS_DEGREE)
+        return float(np.sqrt(np.mean((y[judged] - np.polyval(curve, x[judged])) ** 2)))
+
+    filtered = [lag(filled, minutes * 60, width) for minutes in CROSS_LAGS]
+    forward = [error(x, heating, cooling) for x in filtered]
+    backward = [error(x, cooling, heating) for x in filtered]
+    best = int(np.argmin(np.maximum(forward, backward)))
+    curve = np.polyfit(filtered[best][good], y[good], CROSS_DEGREE)
+    return CrossPrediction(forward, backward, best, float(-curve[1] / (2 * curve[0])))
+
+
 def chronyd_own(path: str, unix: np.ndarray) -> np.ndarray:
     """chronyd's frequency less its compensation, at the times `unix`, NaN
     where it has no reading near."""
@@ -359,12 +400,26 @@ def report(run: Run, bins: Bins, npz: str | None) -> None:
             label = f"{name} ({run.names.get(name, '?')})"
             print(describe_step(label, fit, "degrees"))
 
-    print("frequency against each sensor through a lag:")
-    for name, values in bins.sensors.items():
-        scan = scan_lags(values, bins.ppm, bins.width)
+    load_offs = [start for start, rose in steps if not rose]
+    if load_offs:
         print(
-            describe_scan(f"{name} ({run.names.get(name, '?')})", scan, "ppm/degree C")
+            "frequency's curve on each sensor through a lag, fitted on one"
+            " side of the load's end, RMSE on the other (ppm), by lag in min:"
         )
+        for name, values in bins.sensors.items():
+            print(f"  {name} ({run.names.get(name, '?')}):")
+            cross = cross_predict(bins.t, values, bins.ppm, load_offs[0], bins.width)
+            if cross is None:
+                print("    too little data")
+                continue
+            for minutes, forward, backward in zip(
+                CROSS_LAGS, cross.heating_to_cooling, cross.cooling_to_heating
+            ):
+                print(f"    {minutes:5.2f}  {forward:.3f}  {backward:.3f}")
+            print(
+                f"    best {CROSS_LAGS[cross.best]} min, curve turns at"
+                f" {cross.minimum:.1f} degrees C"
+            )
 
     if npz:
         own = chronyd_own(npz, bins.unix)

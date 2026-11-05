@@ -49,13 +49,19 @@ CPU's load.
 - `pps_step.py` turns the rows into the frequency per minute, positive
   fast (chronyd's sign: `client.c`, `chrony.conf.adoc`, chrony 4.6), and
   finds the load steps from the CPU's load.  For each step it fits how
-  the frequency and each sensor moved, and for the whole run it scans
-  each sensor's lag behind which the frequency best follows, by the
-  same blocked cross-validation.  Given chronyd's readings, it scans
-  chronyd's lag behind the raw frequency too: that part of a fitted lag
-  is chronyd's estimator, not the crystal.
+  the frequency and each sensor moved.  Then it fits the frequency's
+  curve on each sensor through each lag on one side of the load's end
+  and predicts the other: both cross the same temperatures, where blocked
+  cross-validation of a step run would extrapolate.  Given chronyd's
+  readings, it scans chronyd's lag behind the raw frequency too.
 
 A step's tau range assumes independent noise, so it is optimistic; a
-step's start also carries any settling left from the step before.
+step's start also carries any settling left from the step before.  A
+frequency that crosses a turn in its curve is not first-order, so its
+step fit means little: judge it by the cross-prediction.
+
+The design's result is `pps_step.py --bin 15` on
+[`data/draws-pps.csv`](../data/draws-pps.csv), and for the comparison
+`--bin 60 --chronyd ../data/draws-pps-chronyd.npz`.
 
 Tests: `uv run pytest`.

@@ -51,19 +51,13 @@ next.
 
 ## Next
 
-1. The raw-clock PPS check on draws (design, "Measurements"), with
-   the owner at the box and a CPU load step, to measure the crystal's
-   real lag.  `study/pps_raw.py` records and `study/pps_step.py`
-   analyzes; tested on simulated edges only, not yet run on a PPS.
-   draws because it has a `/dev/pps0`: chronos is a work in progress,
-   tare has no refclock (its `pps0` is a NIC's PTP device with no
-   edges), and apu-0's PPS is on a PHC pin, which the recorder does not
-   read.  Checked on 2026-11-05: draws's `pps0` has the edges
-   (`pps.-1`, mode 1151, the one chronyd uses), on aarch64 with
-   clocksource `arch_sys_counter`, Python 3.11, no `fan*_input`,
-   `stress-ng` installed.
-2. If it is minutes, as the physics suggests, revise the design's
-   lags and the chrony proposal's guidance to the measured, physical
-   lag.
+1. Find why draws's readings fit a 10 min lag when its crystal lags
+   about 1 min and chronyd adds none (design, "First result"): one load
+   step on 2026-11-05, with `study/pps_raw.py` and `study/pps_step.py`.
+   Repeat on chronos once it is ready.  tare has no refclock (its
+   `pps0` is a NIC's PTP device with no edges), and apu-0's PPS is on a
+   PHC pin, which the recorder does not read.
+2. Then revise the design's lags and the chrony proposal's guidance to
+   what that shows.
 3. Then phase 1 (a fixed filter) on one host, for before-and-after
    offset and holdover numbers, and the chrony-dev question.
