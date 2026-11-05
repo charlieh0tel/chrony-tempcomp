@@ -61,9 +61,9 @@ next.
    ruled out, leaving chronyd's window in quiet running or the room's
    path.  Next: days of `study/pps_raw.py` in quiet running on draws,
    with `chronyc sourcestats`.  Repeat on chronos once it is ready.
-   tare has no refclock (its
-   `pps0` is a NIC's PTP device with no edges), and apu-0's PPS is on a
-   PHC pin, which the recorder does not read.
+   tare has no refclock (its `pps0` is a NIC's PTP device with no
+   edges).  `pps_raw.py --phc` reads apu-0's PHC pin: tested on simulated
+   events only, not yet run on apu-0.
 2. Then revise the design's lags and the chrony proposal's guidance to
    what that shows.
 3. Then phase 1 (a fixed filter) on one host, for before-and-after

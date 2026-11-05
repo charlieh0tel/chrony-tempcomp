@@ -45,7 +45,8 @@ CPU's load.
 
 - `pps_raw.py`, standard library only, records a row per edge.  It
   reads sysfs, `/proc` and the clocks, needs no privileges and sends
-  chronyd nothing.
+  chronyd nothing.  With `--phc /dev/ptpN` it reads a PHC pin's edges
+  instead, read-only and with no ioctl, needing the device's group.
 - `pps_step.py` turns the rows into the frequency per minute, positive
   fast (chronyd's sign: `client.c`, `chrony.conf.adoc`, chrony 4.6), and
   finds the load steps from the CPU's load.  For each step it fits how

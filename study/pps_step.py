@@ -42,6 +42,10 @@ LOAD_ON = 0.5
 MIN_RUN = 300
 # Time constants tried for a step, in seconds: geometric, in bins' terms.
 STEP_TAUS = np.geomspace(30.0, 4 * 3600.0, 200)
+# A PHC may report both edges of the pulse.  The one on the second, by
+# CLOCK_REALTIME to within this many ns, is the edge: well inside any
+# pulse's width, and well outside a synchronized clock's error.
+ON_SECOND = NANOSECONDS // 20
 # Lags tried against a whole run, in minutes.
 LAGS = [0, 1, 2, 3, 5, 7, 10, 15, 20, 30, 45, 60, 90, 120]
 # Lags tried cross-predicting heating and cooling, in minutes, and the
@@ -166,6 +170,11 @@ def load_run(path: str) -> Run:
     )
 
 
+def unix_edges(run: Run) -> np.ndarray:
+    """Where each edge is in Unix time, ns, from the read after it."""
+    return run.unix_read - (run.stamp_read - run.stamp_edge)
+
+
 def edge_times(run: Run) -> tuple[np.ndarray, np.ndarray]:
     """(the edges' raw times in seconds from the first read, which rows
     they are): each read, less the time back to its edge at the stamping
@@ -176,6 +185,10 @@ def edge_times(run: Run) -> tuple[np.ndarray, np.ndarray]:
     rate = np.median((raw[rows:] - raw[:-rows]) / (stamp[rows:] - stamp[:-rows]))
     latency = run.stamp_read - run.stamp_edge
     good = (latency >= 0) & (latency < MAX_LATENCY)
+    if run.meta.get("stamp_clock") == "phc":
+        # Only choosing which rows are the edge, so chronyd's clock is fine.
+        from_second = (unix_edges(run) + NANOSECONDS // 2) % NANOSECONDS
+        good &= np.abs(from_second - NANOSECONDS // 2) < ON_SECOND
     return (raw[good] - latency[good] * rate) / NANOSECONDS, np.flatnonzero(good)
 
 
@@ -205,8 +218,7 @@ def bin_run(run: Run, width: float = BIN) -> Bins:
     sensors = {name: np.full(count, np.nan) for name in run.sensors}
     deviations = []
     dropped = 0
-    # Where each edge is in Unix time, from the read after it.
-    unix_edge = run.unix_read - (run.stamp_read - run.stamp_edge)
+    unix_edge = unix_edges(run)
     origin = unix_edge[0]
     for i in range(count):
         members = np.flatnonzero(index == i)
@@ -375,8 +387,9 @@ def describe_scan(name: str, scan: LagScan | None, slope_unit: str) -> str:
 
 def report(run: Run, bins: Bins, npz: str | None) -> None:
     good = ~np.isnan(bins.ppm)
-    edges = len(run.seq)
-    lost = int(run.seq[-1] - run.seq[0] + 1 - edges)
+    times = edge_times(run)[0]
+    edges = len(times)
+    lost = round(times[-1] - times[0]) + 1 - edges
     print(f"{run.meta.get('host', '?')} boot {run.meta.get('boot_id', '?')}")
     print(
         f"{edges} edges over {bins.t[-1] / 3600:.2f} h, {lost} not read,"

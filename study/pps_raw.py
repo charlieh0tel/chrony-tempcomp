@@ -9,12 +9,23 @@ be copied to a host and run.  It records what it reads and computes
 nothing about frequency: `pps_step.py` does that afterward.
 
 Usage: python3 pps_raw.py -o draws-pps.csv [--device /sys/class/pps/pps0]
+       python3 pps_raw.py -o apu-0-pps.csv --phc /dev/ptp2 [--channel 0]
 
 The kernel stamps an edge in CLOCK_REALTIME, the only stamp sysfs gives
 (`assert`, "sec.nsec#seq", drivers/pps/sysfs.c).  So each row also has
 the two clocks read together just after the edge: the time back to the
 edge is short, so chronyd's steering of CLOCK_REALTIME hardly enters
 the raw time of the edge.
+
+A PHC pin (`refclock PHC /dev/ptpN:extpps`) stamps the edge in the NIC's
+clock instead, the same way: the time back to the edge is short, so the
+NIC's oscillator hardly enters either.  The device is opened read-only
+and sent no ioctl, as chronyd owns its timestamping (PTP_EXTTS_REQUEST):
+each opener has its own queue of the events, and closing frees only that
+(`ptp_open`, `ptp_release`, drivers/ptp/ptp_chardev.c, Linux 6.12; before
+6.7 or so readers shared one queue, so check first).  It needs the
+device's group, `_chrony` on apu-0.  Every event is a row, of both edges
+if the NIC reports both: `pps_step.py` keeps those on the second.
 """
 
 from __future__ import annotations
@@ -24,6 +35,8 @@ import csv
 import glob
 import os
 import platform
+import select
+import struct
 import sys
 import time
 
@@ -50,6 +63,14 @@ POLL = 0.002
 POLL_OVERDUE = 0.05
 # Seconds without an edge before it counts as overdue.
 OVERDUE = 2.0
+# struct ptp_extts_event (include/uapi/linux/ptp_clock.h, Linux 6.12):
+# seconds, nanoseconds, reserved, channel, flags, 2 words reserved.
+EXTTS_EVENT = struct.Struct("=qIIII8x")
+# A POSIX clock id from a file descriptor: FD_TO_CLOCKID, clock_gettime(2).
+CLOCKFD = 3
+CLOCKFD_SHIFT = 3
+# Where a PHC's name is, by the device's base name.
+PTP_CLOCK_NAME = "/sys/class/ptp/{}/clock_name"
 # Tries at reading the clocks together, of which the tightest is kept.
 PAIR_TRIES = 8
 
@@ -197,6 +218,59 @@ class SysfsSource:
             time.sleep(POLL_OVERDUE if overdue else POLL)
 
 
+def parse_extts(data: bytes) -> tuple[int, int]:
+    """(stamp in ns, channel) from a PTP device's event."""
+    seconds, nanoseconds, _, channel, _ = EXTTS_EVENT.unpack(data)
+    return seconds * NANOSECONDS + nanoseconds, channel
+
+
+class PhcSource:
+    """Edges from a PHC's external timestamps, read from our own queue of
+    them; the NIC stamps them in its clock.  The kernel's sequence has no
+    counterpart here, so rows count events."""
+
+    def __init__(self, path: str, channel: int = 0) -> None:
+        self.path = path
+        self.channel = channel
+        self.fd = os.open(path, os.O_RDONLY)
+        self.stamp_clock = (~self.fd << CLOCKFD_SHIFT) | CLOCKFD
+        self.sequence = 0
+
+    def header(self) -> list[tuple[str, str]]:
+        name = PTP_CLOCK_NAME.format(os.path.basename(self.path))
+        try:
+            clock_name = read_text(name)
+        except OSError as error:
+            print(f"cannot read {name}: {error}", file=sys.stderr)
+            clock_name = "unknown"
+        return [
+            ("device", self.path),
+            ("stamp_clock", "phc"),
+            ("channel", str(self.channel)),
+            ("clock_name", clock_name),
+        ]
+
+    def next_edge(self) -> tuple[int, int]:
+        """Wait for this channel's next event: (stamp, count of events)."""
+        overdue = False
+        while True:
+            if not select.select([self.fd], [], [], OVERDUE)[0]:
+                if not overdue:
+                    print(f"no edge for {OVERDUE} s", file=sys.stderr)
+                overdue = True
+                continue
+            data = os.read(self.fd, EXTTS_EVENT.size)
+            if len(data) != EXTTS_EVENT.size:
+                raise SystemExit(f"{self.path}: read {len(data)} bytes of an event")
+            stamp, channel = parse_extts(data)
+            if channel != self.channel:
+                continue
+            if overdue:
+                print("edges again", file=sys.stderr)
+            self.sequence += 1
+            return stamp, self.sequence
+
+
 def write_header(file, source, sensors: list[str]) -> None:
     """Comment lines saying what the rows are from, then the column names."""
     for key, value in [
@@ -257,13 +331,19 @@ def record(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("-o", "--output", required=True, help="new CSV file")
-    parser.add_argument("--device", default=DEVICE, help=f"sysfs device ({DEVICE})")
+    edges_from = parser.add_mutually_exclusive_group()
+    edges_from.add_argument("--device", default=DEVICE, help=f"sysfs device ({DEVICE})")
+    edges_from.add_argument("--phc", help="PTP device, for a PHC pin's edges")
+    parser.add_argument(
+        "--channel", type=int, default=0, help="PHC's timestamp channel (0)"
+    )
     parser.add_argument(
         "--edges", type=int, default=0, help="stop after this many edges (never)"
     )
     args = parser.parse_args()
+    source = PhcSource(args.phc, args.channel) if args.phc else SysfsSource(args.device)
     try:
-        record(args.output, SysfsSource(args.device), edges=args.edges)
+        record(args.output, source, edges=args.edges)
     except KeyboardInterrupt:
         pass
 

@@ -212,9 +212,13 @@ chronyd:
     the raw clock by reading both clocks together just after each
     edge.
   - A PHC pin (`refclock PHC /dev/ptpN:extpps`): the edge is in the
-    NIC's clock, another oscillator; bring it onto the raw clock with
-    the PHC's cross-timestamp (`PTP_SYS_OFFSET_PRECISE`, which gives
-    raw time, where the driver supports it).
+    NIC's clock, another oscillator; map it to the raw clock the same
+    way, reading the PHC (`clock_gettime` on the device) and the raw
+    clock together just after each edge.  The NIC's oscillator only
+    spans that short gap, so it hardly enters.  This needs no ioctl,
+    so chronyd's timestamping is left alone; a cross-timestamp
+    (`PTP_SYS_OFFSET_PRECISE`) would tighten the pairing if the reading
+    proved too loose.
   - The raw clock's scale is the kernel's boot-time calibration of
     the clocksource, so its absolute error can differ from boot to
     boot: fit an intercept per boot.  A clocksource switch
@@ -309,8 +313,8 @@ read through the sensor's 0.538 °C step and noise.
   draws, centered about 8.5: the same ratio as their fitted delays,
   which is what chronyd's window would give.  A short sensor path on
   apu-0 would give it too.  One `sourcestats` on apu-0 on 2026-11-05
-  showed 6 samples over 20 s, well under that limit; how many it keeps
-  over time, on either host, is not yet known.
+  showed 6 samples over 20 s, and one on draws 9 over 129 s, both well
+  under that limit; how many each keeps over time is not yet known.
 - `frequency - compensation` also holds the raw reading, through the
   compensation, which favors no lag: a 1 min delay scores worse than
   none, and worse than 2 min.  These readings cannot fully separate it.

@@ -154,6 +154,91 @@ def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
         )
 
 
+def test_parse_extts():
+    event = pps_raw.EXTTS_EVENT.pack(1800000000, 1234, 0, 1, 7)
+    assert len(event) == 32
+    assert pps_raw.parse_extts(event) == (1800000000 * NS + 1234, 1)
+
+
+def test_phc_source_records_its_channel_only(tmp_path):
+    events = tmp_path / "ptp9"
+    events.write_bytes(
+        b"".join(
+            pps_raw.EXTTS_EVENT.pack(seconds, 7, 0, channel, 0)
+            for seconds, channel in [(100, 0), (101, 1), (102, 0), (103, 0)]
+        )
+    )
+    source = pps_raw.PhcSource(str(events), 0)
+    # A regular file is not a clock: the realtime clock stands in.
+    source.stamp_clock = time.CLOCK_REALTIME
+    output = tmp_path / "run.csv"
+    pps_raw.record(str(output), source, [], edges=3)
+    run = pps_step.load_run(str(output))
+    assert list(run.stamp_edge) == [(s * NS) + 7 for s in (100, 102, 103)]
+    assert list(run.seq) == [1, 2, 3]
+    assert run.meta["stamp_clock"] == "phc"
+    assert run.meta["channel"] == "0"
+
+
+def test_phc_source_refuses_a_short_read(tmp_path):
+    events = tmp_path / "ptp9"
+    events.write_bytes(b"short")
+    with pytest.raises(SystemExit, match="5 bytes"):
+        pps_raw.PhcSource(str(events)).next_edge()
+
+
+def simulate_phc(path, ppm, seconds=1200, phc_ppm=50.0, epoch=37.0, width=0.5):
+    """What pps_raw.py --phc would write: both edges of each pulse, in a
+    free-running clock `phc_ppm` off true from an arbitrary `epoch`, with a
+    realtime clock on true."""
+    rng = np.random.default_rng(SEED)
+    with open(path, "w", newline="") as file:
+        file.write("# host=simulated\n# stamp_clock=phc\n")
+        writer = csv.writer(file, lineterminator="\n")
+        writer.writerow(list(pps_raw.COLUMNS))
+        for i in range(seconds * 2):
+            edge = i // 2 + (width if i % 2 else 0.0) + rng.normal(0, 1e-8)
+            read = edge + rng.uniform(50e-6, 2e-3)
+
+            def phc(at):
+                return int((epoch + at * (1 + phc_ppm * 1e-6)) * NS)
+
+            writer.writerow(
+                [
+                    i + 1,
+                    phc(edge),
+                    phc(read),
+                    int(read * (1 + ppm * 1e-6) * NS),
+                    int((START_UNIX + read) * NS),
+                    3000,
+                    1000,
+                    "tsc",
+                    "0.050",
+                ]
+            )
+
+
+@pytest.mark.parametrize("phc_ppm", [-50.0, 0.0, 50.0])
+def test_phc_run_measures_the_crystal_not_the_nic(tmp_path, phc_ppm):
+    path = tmp_path / "run.csv"
+    simulate_phc(path, -23.0, phc_ppm=phc_ppm)
+    bins = pps_step.bin_run(pps_step.load_run(str(path)))
+    assert np.nanmax(np.abs(bins.ppm + 23.0)) < 0.01
+    assert bins.dropped == 0
+
+
+def test_phc_run_keeps_the_edge_on_the_second(tmp_path):
+    path = tmp_path / "run.csv"
+    simulate_phc(path, 1.0, seconds=100, width=0.1)
+    run = pps_step.load_run(str(path))
+    times, rows = pps_step.edge_times(run)
+    assert len(rows) == 100
+    assert np.all(rows % 2 == 0)
+    assert np.isclose(np.median(np.diff(times)), 1.0, atol=1e-5)
+    # The bin's Unix time is real, whatever the PHC's epoch.
+    assert abs(pps_step.bin_run(run).unix[0] - (START_UNIX + 30)) < 1
+
+
 def test_frequency_has_chronyd_sign_and_no_chronyd_in_it(tmp_path):
     """Fast is positive, whatever chronyd is doing to the realtime clock."""
     for real_rate_ppm in (-100.0, 0.0, 100.0):
