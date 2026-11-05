@@ -1,14 +1,22 @@
 # chrony-tempcomp
 
-Fit a [chrony](https://chrony-project.org/) `tempcomp` point table from
-chrony's own logs, for a clock disciplined by a good reference (PPS) whose
-oscillator drifts with temperature.
+Temperature compensation for [chrony](https://chrony-project.org/),
+from chrony's own logs, for a clock whose oscillator drifts with
+temperature.
+
+- `chrony_tempcomp.py` fits a `tempcomp` point table (below).
+- [docs/design.md](docs/design.md): why chrony's `tempcomp` fed a raw
+  sensor reading fails when the sensor is away from the crystal, or
+  noisy and coarse; how the lag is found; a filter program to feed it
+  instead; and a proposal for chrony to filter the reading itself.
+
+## Point table
 
 A point table rather than the `k0 k1 k2` quadratic, because real crystals
 are not always quadratic: one test box's has a +3 ppm anomaly between 80.5 and
-82 C on the board sensor that no polynomial follows.
+82 °C on the board sensor that no polynomial follows.
 
-## Needs
+### Needs
 
 - python3 with numpy
 - chrony logging both, in `chrony.conf` or `conf.d`:
@@ -22,7 +30,7 @@ are not always quadratic: one test box's has a +3 ppm anomaly between 80.5 and
   adds tempcomp.log's compensation back to get the clock's own frequency.
 - Some days of logs covering the temperatures the box sees.
 
-## Use
+### Use
 
 `/var/log/chrony` is readable only by `_chrony`, so copy it first:
 
@@ -40,7 +48,7 @@ Install it, with a backup of `/etc/chrony` and rollback if chronyd fails:
 The report goes to stderr.  Bins flagged "frequency moves fast here" are
 where a little sensor noise is worth a lot of ppm.
 
-## Notes
+### Notes
 
 - Temperatures are in the sensor's units (millidegrees for sysfs).
 - Each point is `comp = fref - own(T)`, `own` the clock's own frequency.
