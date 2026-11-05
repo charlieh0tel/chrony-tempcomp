@@ -7,10 +7,11 @@ chrony logdir, rotated .gz files included, and writes a points file for
 
     tempcomp <sensor> <interval> <points-file>
 
-chrony applies  current_freq = uncomp_freq - comp,  and tracking.log always
-records the uncompensated frequency (LCL_ReadAbsoluteFrequency undoes the
-compensation), so each point is simply  comp(T) = freq(T) - fref,  and a
-refit works the same whether or not tempcomp is already active.
+chrony gives the kernel  freq - comp  and logs  freq,  the correction it
+wants before compensation (LCL_SetAbsoluteFrequency, LCL_ReadAbsoluteFrequency,
+local.c, chrony 4.6).  Under an active table that is what is left once the
+table has compensated, so the clock's own frequency is  freq - comp,  with comp
+from tempcomp.log; each point is  comp(T) = own(T) - fref.
 
 chrony's point-file parser accepts only "<temp> <comp>" lines: a comment or
 blank line is fatal.  It interpolates linearly and extrapolates the end
@@ -52,7 +53,9 @@ def read_log(logdir, name):
 
 
 def load(logdir, source, max_skew):
-    temp = sorted((t, float(p[2])) for t, p in read_log(logdir, "tempcomp.log"))
+    temp = sorted(
+        (t, float(p[2]), float(p[3])) for t, p in read_log(logdir, "tempcomp.log")
+    )
     track = sorted(
         (t, float(p[4]))
         for t, p in read_log(logdir, "tracking.log")
@@ -60,16 +63,19 @@ def load(logdir, source, max_skew):
     )
     if len(temp) < 2 or len(track) < 2:
         sys.exit("not enough tempcomp or tracking rows")
-    tt, T = np.array(temp).T
+    tt, T, C = np.array(temp).T
     rt, F = np.array(track).T
-    return tt, T, rt, F
+    return tt, T, C, rt, F
 
 
-def pair(tt, T, rt, F, max_gap):
-    """Temperature at each tracking time, keeping only times with a sensor sample nearby."""
+def pair(tt, T, C, rt, F, max_gap):
+    """Temperature and the clock's own frequency (logged frequency less the
+    compensation) at each tracking time, keeping only times with a sensor
+    sample nearby."""
     i = np.searchsorted(tt, rt).clip(1, len(tt) - 1)
     near = np.minimum(abs(tt[i] - rt), abs(tt[i - 1] - rt)) <= max_gap
-    return rt[near], np.interp(rt[near], tt, T), F[near]
+    at = rt[near]
+    return at, np.interp(at, tt, T), F[near] - np.interp(at, tt, C)
 
 
 def bin_points(Ti, F, step, min_count):
@@ -179,8 +185,8 @@ def main():
     )
     args = ap.parse_args()
 
-    tt, T, rt, F = load(args.logdir, args.source, args.max_skew)
-    rt, Ti, F = pair(tt, T, rt, F, args.max_gap)
+    tt, T, C, rt, F = load(args.logdir, args.source, args.max_skew)
+    rt, Ti, F = pair(tt, T, C, rt, F, args.max_gap)
     if len(rt) < args.min_count * 2:
         sys.exit(f"only {len(rt)} usable tracking rows from source {args.source}")
     fref = args.fref if args.fref is not None else round(float(np.median(F)), 3)

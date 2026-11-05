@@ -17,8 +17,9 @@ are not always quadratic: one test box's has a +3 ppm anomaly between 80.5 and
       tempcomp /sys/class/thermal/thermal_zone0/temp 15 0 0 0 0
 
   A `tempcomp` line with zero coefficients logs the sensor without
-  compensating.  An existing point table is fine too: tracking.log records
-  the uncompensated frequency either way, so refits need no change.
+  compensating.  An existing point table is fine too: under it
+  tracking.log records what is left once it has compensated, so the fit
+  adds tempcomp.log's compensation back to get the clock's own frequency.
 - Some days of logs covering the temperatures the box sees.
 
 ## Use
