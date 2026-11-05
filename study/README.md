@@ -60,6 +60,12 @@ step's start also carries any settling left from the step before.  A
 frequency that crosses a turn in its curve is not first-order, so its
 step fit means little: judge it by the cross-prediction.
 
+`smoothing.py` asks what a fitted lag is, on a host's one-minute
+buckets: a causal lag against the same smoothing with no delay and a
+pure delay; simulated crystals of known lag as a control; and a second,
+slower path, judged on the readings and on a load step's run
+(`--run`).
+
 The design's result is `pps_step.py --bin 15` on
 [`data/draws-pps.csv`](../data/draws-pps.csv), and for the comparison
 `--bin 60 --chronyd ../data/draws-pps-chronyd.npz`.

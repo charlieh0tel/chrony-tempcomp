@@ -51,10 +51,13 @@ next.
 
 ## Next
 
-1. Find why draws's readings fit a 10 min lag when its crystal lags
-   about 1 min and chronyd adds none (design, "First result"): one load
-   step on 2026-11-05, with `study/pps_raw.py` and `study/pps_step.py`.
-   Repeat on chronos once it is ready.  tare has no refclock (its
+1. Find why draws's readings fit a 7 min lag when its crystal lags
+   about 1 min under a load step (design, "Why the readings fit a longer
+   lag"): smoothing is about half and a slower path for load's heat is
+   ruled out, leaving chronyd's window in quiet running or the room's
+   path.  Next: days of `study/pps_raw.py` in quiet running on draws,
+   with `chronyc sourcestats`.  Repeat on chronos once it is ready.
+   tare has no refclock (its
    `pps0` is a NIC's PTP device with no edges), and apu-0's PPS is on a
    PHC pin, which the recorder does not read.
 2. Then revise the design's lags and the chrony proposal's guidance to

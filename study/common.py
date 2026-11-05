@@ -78,14 +78,14 @@ def huber_fit(X, y):
     ).x
 
 
-def cross_validate(predict, good, y):
+def cross_validate(predict, good, y, margin=MARGIN):
     """Held-out RMSE: `predict(train)` fits on the samples `train`
     marks and predicts every sample from the temperature alone; each
-    fold is held out in turn."""
+    fold is held out in turn, with `margin` samples either side."""
     errors = []
     for test in np.array_split(np.flatnonzero(good), BLOCKS):
         train = good.copy()
-        train[max(0, test[0] - MARGIN) : test[-1] + MARGIN + 1] = False
+        train[max(0, test[0] - margin) : test[-1] + margin + 1] = False
         errors.append(y[test] - predict(train)[test])
     e = np.concatenate(errors)
     return float(np.sqrt(np.mean(e**2)))

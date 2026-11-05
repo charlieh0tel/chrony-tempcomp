@@ -9,6 +9,7 @@ import numpy as np
 import pps_raw
 import pps_step
 import pytest
+import smoothing
 
 NS = pps_raw.NANOSECONDS
 START_UNIX = 1_800_000_000
@@ -368,3 +369,29 @@ def test_report_runs_end_to_end(tmp_path, capsys):
     assert "load on at 30.0 min" in out
     assert "load off at 60.0 min" in out
     assert "median +7.000 ppm" in out
+
+
+def test_forward_backward_smooths_without_delay():
+    pulse = np.zeros(601)
+    pulse[300] = 1.0
+    smooth = smoothing.forward_backward(pulse, 600.0)
+    assert int(np.argmax(smooth)) == 300
+    assert smooth.max() < 0.5
+    causal = pps_step.lag(pulse, 600.0, smoothing.BUCKET)
+    assert int(np.argmax(causal)) == 300
+    assert np.sum(np.arange(601) * causal) / causal.sum() > 305
+    assert np.sum(np.arange(601) * smooth) / smooth.sum() == pytest.approx(300, abs=0.5)
+
+
+def test_delayed_delays_by_whole_buckets():
+    u = np.arange(5.0)
+    assert list(smoothing.delayed(u, 120.0)) == [0, 0, 0, 1, 2]
+    assert list(smoothing.delayed(u, 0.0)) == [0, 1, 2, 3, 4]
+
+
+def test_two_paths_shares_add_up():
+    u = np.ones(50)
+    assert np.allclose(smoothing.two_paths(u, 0.6, 20, 60.0), 1.0)
+    step = np.concatenate([np.zeros(10), np.ones(200)])
+    fast = pps_step.lag(step, 60.0, 60.0)
+    assert np.allclose(smoothing.two_paths(step, 1.0, 20, 60.0), fast)

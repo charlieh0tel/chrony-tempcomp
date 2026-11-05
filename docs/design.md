@@ -252,21 +252,61 @@ when the load ended it fell again, 0.7 ppm within 1 min, then climbed.
   the sensor through a lag has its least error at 0.75 to 1 min: 0.11
   to 0.13 ppm, the noise of a 15 s bin (0.133 ppm).  A straight line
   does no better than 0.40 ppm at any lag.
-- **chronyd's estimator adds no lag here.**  chronyd's own frequency
-  matches the raw one to +0.004 ppm (median), spread 0.052 ppm, with
-  its best lag behind the raw at 0 of the 1 min grid.  So on a PPS host
-  the estimator does not explain a fitted lag, as was suggested above.
+- **chronyd's estimator keeps up with a large step.**  chronyd's own
+  frequency matches the raw one to +0.004 ppm (median), spread 0.052
+  ppm, with its best lag behind the raw at 0 of the 1 min grid.  That
+  says nothing of quiet running: the regression drops its oldest samples
+  until the residuals pass a runs test (`RGR_FindBestRegression`,
+  `regress.c`, chrony 4.6), so a step shortens its window, and in quiet
+  running it can keep up to 64 samples (`MAX_SAMPLES`, `sourcestats.c`).
 - **The curve turns at 68.6 °C on the sensor**, as
   `0.0057 (T - 68.6)^2 + 3.30` ppm through a 1 min lag.  draws's
   `tempcomp` line, fitted only below 61 °C, already has its turn at
   68.5 °C and a depth of 1.19 ppm.  The slope at 55 °C is -0.16 ppm/°C,
   against the -0.17 of 9 days' readings.
 
-Not settled.  This is one step on one host, driven through the CPU, so
-it shows the fast path from the SoC to the crystal; a slow path from
-the room could not show in two hours.  The 10 min this host's readings
-fit ("Why") is neither this 1 min nor chronyd's: smoothing of the
-sensor's 0.538 °C steps is the remaining candidate, not yet tested.
+This is one step on one host, driven through the CPU, so it shows the
+fast path from the SoC to the crystal; a slow path from the room could
+not show in two hours.
+
+### Why the readings fit a longer lag
+
+draws's 9 days of readings, at their one-minute buckets
+([`study/smoothing.py`](../study/smoothing.py),
+[output](../data/smoothing.txt)), best fit a causal lag of 7 min, which
+`lag.py`'s coarser grid gives as 10.  Held-out RMSE, ppm:
+
+| | None | Causal lag | Same smoothing, no delay |
+|---|---|---|---|
+| The readings | 0.0395 | 0.0293 at 7 min | 0.0338 at 3 min |
+| Control: crystal 1 min behind | 0.0477 | 0.0394 at 3 min | 0.0376 at 5 min |
+| Control: crystal 5 min behind | 0.0464 | 0.0323 at 7 min | 0.0343 at 7 min |
+| Control: crystal 7 min behind | 0.0484 | 0.0314 at 7 min | 0.0363 at 7 min |
+
+Each control is a simulated crystal behind the host's slow temperature,
+read through the sensor's 0.538 °C step and noise.
+
+- **Smoothing is about half of the gain, not all.**  It takes 0.0395 to
+  0.0338 with no delay.  With a 1 min crystal, smoothing alone should
+  beat the causal lag; in the readings the causal lag wins, by what a
+  crystal 5 to 7 min behind gives.
+- **A second, slower path for load's heat is ruled out.**  In the
+  readings, 60% through 1 min and 40% through 20 min scores 0.0276, the
+  best of all; across the load step it predicts to 0.30 and 0.47 ppm
+  against 0.11 and 0.15 with no second path.
+- **What is left, untested: chronyd's window, or the room's path.**  In
+  quiet running, 64 samples at 16 s is up to 17 min, whose regression
+  centers about 8.5 min back, the size of the delay left over.  Or heat
+  from the room reaches the crystal and the sensor by paths the load
+  step does not use.
+- `frequency - compensation` also holds the raw reading, through the
+  compensation, which favors no lag: a 1 min delay scores worse than
+  none, and worse than 2 min.  These readings cannot fully separate it.
+
+Telling these apart needs the raw frequency, free of chronyd and of
+the compensation, over days of quiet running: `pps_raw.py` for days,
+with the number of samples chronyd is using
+(`chronyc sourcestats`, read-only).
 
 ## Phase 1: a fixed filter
 
@@ -504,5 +544,6 @@ requests.
 - Learning by daily refit or by Kalman filter.
 - Proposal for chrony: ask before or after the phase 1 experiment.
 - Several sensors: which hosts to record, and for how long.
-- Measurements: why draws's readings fit 10 min where its crystal lags
-  1 min; the same check on another host (chronos, once it is ready).
+- Measurements: whether draws's leftover delay is chronyd's window or
+  the room's path, from days of raw frequency; the same check on
+  another host (chronos, once it is ready).

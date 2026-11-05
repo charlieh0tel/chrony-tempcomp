@@ -306,6 +306,14 @@ def scan_lags(u: np.ndarray, y: np.ndarray, width: float) -> LagScan | None:
     return LagScan(scores, best, float(huber_fit(x[good], y[good])[1]))
 
 
+def curve_error(
+    x: np.ndarray, y: np.ndarray, fitted: np.ndarray, judged: np.ndarray
+) -> float:
+    """RMSE on the samples `judged` of y's curve on x fitted on `fitted`."""
+    curve = np.polyfit(x[fitted], y[fitted], CROSS_DEGREE)
+    return float(np.sqrt(np.mean((y[judged] - np.polyval(curve, x[judged])) ** 2)))
+
+
 def cross_predict(
     t: np.ndarray, u: np.ndarray, y: np.ndarray, load_off: float, width: float
 ) -> CrossPrediction | None:
@@ -319,14 +327,9 @@ def cross_predict(
     if heating.sum() <= CROSS_DEGREE or cooling.sum() <= CROSS_DEGREE:
         return None
     filled = np.interp(np.arange(len(u)), np.flatnonzero(known), u[known])
-
-    def error(x, fitted, judged):
-        curve = np.polyfit(x[fitted], y[fitted], CROSS_DEGREE)
-        return float(np.sqrt(np.mean((y[judged] - np.polyval(curve, x[judged])) ** 2)))
-
     filtered = [lag(filled, minutes * 60, width) for minutes in CROSS_LAGS]
-    forward = [error(x, heating, cooling) for x in filtered]
-    backward = [error(x, cooling, heating) for x in filtered]
+    forward = [curve_error(x, y, heating, cooling) for x in filtered]
+    backward = [curve_error(x, y, cooling, heating) for x in filtered]
     best = int(np.argmin(np.maximum(forward, backward)))
     curve = np.polyfit(filtered[best][good], y[good], CROSS_DEGREE)
     return CrossPrediction(forward, backward, best, float(-curve[1] / (2 * curve[0])))
