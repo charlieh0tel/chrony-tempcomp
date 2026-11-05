@@ -167,6 +167,74 @@ on chronos about 0.09 ppm RMS of fast error (about 3 us of offset per
 32 s reading, twice its present RMS offset); on tare 0.67 ppm RMS,
 peaks of 3 ppm.  The line needs the filtered temperature.
 
+## Measurements
+
+The lags above were fitted to chronyd's frequency, which is chronyd's
+estimate, not the crystal's: each source's frequency is a regression
+over up to 64 samples, and the tracking frequency blends each new
+estimate with the old one by their skews, an average with a long
+memory.  So a fitted lag mixes three things: the crystal's thermal
+lag, chronyd's estimator, and smoothing of a noisy, discretized
+sensor.  On chronos (held-out RMSE, ppm; none 0.066):
+
+| Time constant | Causal lag | Zero-phase smoothing | Pure delay |
+|---|---|---|---|
+| 5 min | 0.055 | 0.056 | 0.061 |
+| 10 min | 0.050 | 0.054 | 0.064 |
+| 20 min | 0.046 | 0.054 | 0.070 |
+| 30 min | 0.047 | 0.055 | 0.076 |
+| 60 min | 0.057 | 0.059 | 0.096 |
+
+Smoothing with no delay gets half the gain; the rest is a gradual
+delay best at 20 to 30 min, no dead time.  Physically, a bare board
+in still air (about 25 g of PCB, about 0.2 W/K of convection from its
+faces) has a time constant of a few minutes, and an SMD crystal
+follows its board in seconds: most of the fitted lag is likely
+chronyd's estimator.
+
+So chrony-tempcomp takes its own measurements, independent of
+chronyd:
+
+- **Temperatures.**  Every sensor on the host, about once a second,
+  at full resolution, timestamped: the inputs for several sensors,
+  enough samples to average across a sensor's steps, and no
+  dependence on chronyd's `tempcomp` interval.
+- **The crystal's frequency, from PPS against `CLOCK_MONOTONIC_RAW`.**
+  chronyd does not use the kernel's PLL: it sets the kernel's
+  frequency and tick (`adjtimex`) and slews by frequency, steering
+  `CLOCK_REALTIME`.  `CLOCK_MONOTONIC_RAW` is the clocksource at a
+  fixed scale, which nothing adjusts: it runs at the crystal's own
+  rate.  The raw time between consecutive PPS edges is 1 s times one
+  plus the crystal's frequency error, with no estimator and no
+  compensation in it.  About 1 us of edge jitter averages to about
+  0.02 ppm over a minute.
+  - `/dev/ppsN`: the edge is stamped in `CLOCK_REALTIME`; map it to
+    the raw clock by reading both clocks together just after each
+    edge.
+  - A PHC pin (`refclock PHC /dev/ptpN:extpps`): the edge is in the
+    NIC's clock, another oscillator; bring it onto the raw clock with
+    the PHC's cross-timestamp (`PTP_SYS_OFFSET_PRECISE`, which gives
+    raw time, where the driver supports it).
+  - The raw clock's scale is the kernel's boot-time calibration of
+    the clocksource, so its absolute error can differ from boot to
+    boot: fit an intercept per boot.  A clocksource switch
+    (`current_clocksource`, e.g. TSC to HPET) is treated as a reboot.
+  - Without a PPS (an NTP-only host) there is no such measurement;
+    fall back to chronyd's estimate, lag included.
+- **chronyd's state**, read-only: synchronized or not and to what,
+  steps and restarts, the compensation applied; for discarding bad
+  stretches and freezing learning.
+- **Its own record** of all of these, for fitting.
+
+The lag to filter `tempcomp`'s temperature by is then the physical
+one, measured this way; the proposal for chrony's guidance says so.
+
+The quickest check, before any program: a few lines reading
+`/sys/class/pps/pps0/assert` and `CLOCK_MONOTONIC_RAW` together on
+chronos, logging the raw interval per edge, with a CPU load step
+(`stress-ng --cpu 0` for 20 to 30 min) to see how fast the crystal
+responds.
+
 ## Phase 1: a fixed filter
 
 - Read the sensor (`/sys/.../temp*_input`) every `period` seconds.
@@ -403,3 +471,4 @@ requests.
 - Learning by daily refit or by Kalman filter.
 - Proposal for chrony: ask before or after the phase 1 experiment.
 - Several sensors: which hosts to record, and for how long.
+- Measurements: the raw-clock PPS check on chronos, with a load step.
