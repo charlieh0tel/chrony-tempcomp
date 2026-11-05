@@ -11,7 +11,8 @@ chrony gives the kernel  freq - comp  and logs  freq,  the correction it
 wants before compensation (LCL_SetAbsoluteFrequency, LCL_ReadAbsoluteFrequency,
 local.c, chrony 4.6).  Under an active table that is what is left once the
 table has compensated, so the clock's own frequency is  freq - comp,  with comp
-from tempcomp.log; each point is  comp(T) = own(T) - fref.
+from tempcomp.log.  The logged frequency is then  own + comp,  so the table
+that holds it at fref is  comp(T) = fref - own(T).
 
 chrony's point-file parser accepts only "<temp> <comp>" lines: a comment or
 blank line is fatal.  It interpolates linearly and extrapolates the end
@@ -93,20 +94,21 @@ def bin_points(Ti, F, step, min_count):
 def table(Ti, F, args, fref):
     """Points (temp, comp) including any requested extensions past the data."""
     b = bin_points(Ti, F, args.step, args.min_count)
-    pts = [(t, f - fref) for t, f in b[:, :2]]
+    pts = [(t, fref - f) for t, f in b[:, :2]]
     if args.extend_low is not None and args.extend_low < pts[0][0]:
         # quadratic through the coolest part of the data; a guess, not a measurement
         m = Ti <= Ti.min() + args.fit_span
         c = np.polyfit(Ti[m], F[m], 2)
         ext = np.arange(args.extend_low, pts[0][0], args.extend_step)
-        pts = [(t, np.polyval(c, t) - fref) for t in ext] + pts
+        pts = [(t, fref - np.polyval(c, t)) for t in ext] + pts
     if args.extend_high is not None and args.extend_high > pts[-1][0]:
         pts.append((args.extend_high, pts[-1][1]))
     return np.array(pts), b
 
 
 def residual(pts, Ti, F, fref):
-    return F - fref - np.interp(Ti, pts[:, 0], pts[:, 1])
+    """The logged frequency under the table, less fref: zero for a perfect fit."""
+    return F + np.interp(Ti, pts[:, 0], pts[:, 1]) - fref
 
 
 def utc(t):

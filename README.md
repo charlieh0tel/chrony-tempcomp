@@ -43,9 +43,10 @@ where a little sensor noise is worth a lot of ppm.
 ## Notes
 
 - Temperatures are in the sensor's units (millidegrees for sysfs).
-- Each point is `comp = freq(T) - fref`.  chrony applies
-  `freq = uncomp - comp`, so the compensated frequency sits at `fref`
-  (default: the median).  chrony ignores any |comp| above 10 ppm.
+- Each point is `comp = fref - own(T)`, `own` the clock's own frequency.
+  chrony gives the kernel `freq - comp` and logs `freq = own + comp`, so
+  under the table the logged frequency sits at `fref` (default: the
+  median).  chrony ignores any |comp| above 10 ppm.
 - chrony interpolates linearly and extends the first and last segments, so
   pad the ends: `--extend-low` adds a quadratic guess through the coolest
   data and `--extend-high` holds the hottest value flat.  Both are guesses;
