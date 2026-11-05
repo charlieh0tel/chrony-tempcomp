@@ -39,6 +39,10 @@ next.
 - apu-0 over ssh: `apu-0.murgatroid.com`; the short name resolves to
   a Tailscale address that hangs.  The login is in group `_chrony`,
   so `/var/log/chrony` is readable without sudo.
+- apu-0's PPS is the u-blox 1PPS, stamped by the NIC:
+  `refclock PHC /dev/ptp2:extpps:pin=0 ... poll 2`.  `/dev/ptp2` is
+  group `_chrony`, so its login can open it.  Kernel 6.12, clocksource
+  `tsc`, Python 3.13.
 - Each host runs chronymon on port 8323; `study/fetch.py` reads it.
 
 ## Working rules
