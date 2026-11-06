@@ -7,15 +7,20 @@ next.
 ## Done
 
 - `tools/chrony_tempcomp.py` fixed: it fits the clock's own frequency
-  (tracking.log's frequency less tempcomp.log's compensation) and
-  writes the table against the drift (`comp = fref - own`), per
+  (tracking.log's frequency with the compensation in force at each
+  clock update, tempcomp.log's last reading at or before it, taken out)
+  and writes the table against the drift (`comp = fref - own`), per
   chrony 4.6's `local.c`.  Before, a table had the drift's own sign
-  and doubled it.
+  and doubled it.  Pairing by the reading in force instead of
+  interpolating is what the source says, but did not help the fit: on
+  draws's logs of 2026-11-01 to 11-06, a day's held-out residual went
+  from 0.0652 to 0.0678 ppm.
 - The study (`study/`) and four hosts' readings (`data/`), from
   chronymon.
 - chronymon (github.com/charlieh0tel/chronymon) fits the lag on its
   Temperature page by blocked cross-validation, against chronyd's
-  frequency; it only observes.
+  frequency; it only observes.  Its owner has decided to drop that fit
+  (not yet released).
 
 ## Hosts
 

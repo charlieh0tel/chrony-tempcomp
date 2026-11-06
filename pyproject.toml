@@ -13,7 +13,7 @@ dependencies = [
 package = false
 
 [tool.pytest.ini_options]
-testpaths = ["study"]
+testpaths = ["study", "tools"]
 
 [tool.mypy]
 files = ["study/pps_raw.py", "study/pps_step.py"]

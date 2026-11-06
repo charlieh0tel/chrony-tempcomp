@@ -7,12 +7,16 @@ chrony logdir, rotated .gz files included, and writes a points file for
 
     tempcomp <sensor> <interval> <points-file>
 
-chrony gives the kernel  freq - comp  and logs  freq,  the correction it
-wants before compensation (LCL_SetAbsoluteFrequency, LCL_ReadAbsoluteFrequency,
-local.c, chrony 4.6).  Under an active table that is what is left once the
-table has compensated, so the clock's own frequency is  freq - comp,  with comp
-from tempcomp.log.  The logged frequency is then  own + comp,  so the table
-that holds it at fref is  comp(T) = fref - own(T).
+chrony gives the kernel  freq * (1 - 1e-6 comp) - comp  and logs  freq,  the
+correction it wants before compensation (LCL_SetAbsoluteFrequency,
+LCL_ReadAbsoluteFrequency, local.c, chrony 4.6).  Under an active table that is
+what is left once the table has compensated, so that expression is the clock's
+own frequency, with comp from tempcomp.log.  The logged frequency is then about
+own + comp,  so the table that holds it at fref is  comp(T) = fref - own(T).
+
+LCL_SetTempComp leaves  freq  as it is, so a logged  freq  changes only at a
+clock update, and  comp  is the one in force then: the last reading at or
+before the update, not one after it.
 
 chrony's point-file parser accepts only "<temp> <comp>" lines: a comment or
 blank line is fatal.  It interpolates linearly and extrapolates the end
@@ -29,6 +33,9 @@ from datetime import UTC, datetime
 import numpy as np
 
 MAX_COMP = 10.0  # ppm, chrony's limit in tempcomp.c
+# tracking.log's reference when chronyd loses sync (REF_SetUnsynchronised): no
+# clock update.
+UNSYNCHRONIZED = "0.0.0.0"
 
 
 def read_log(logdir, name):
@@ -60,7 +67,9 @@ def load(logdir, source, max_skew):
     track = sorted(
         (t, float(p[4]))
         for t, p in read_log(logdir, "tracking.log")
-        if (source == "any" or p[2] == source) and float(p[5]) <= max_skew
+        if (source == "any" or p[2] == source)
+        and p[2] != UNSYNCHRONIZED
+        and float(p[5]) <= max_skew
     )
     if len(temp) < 2 or len(track) < 2:
         sys.exit("not enough tempcomp or tracking rows")
@@ -70,13 +79,19 @@ def load(logdir, source, max_skew):
 
 
 def pair(tt, T, C, rt, F, max_gap):
-    """Temperature and the clock's own frequency (logged frequency less the
-    compensation) at each tracking time, keeping only times with a sensor
-    sample nearby."""
-    i = np.searchsorted(tt, rt).clip(1, len(tt) - 1)
-    near = np.minimum(abs(tt[i] - rt), abs(tt[i - 1] - rt)) <= max_gap
-    at = rt[near]
-    return at, np.interp(at, tt, T), F[near] - np.interp(at, tt, C)
+    """Temperature and the clock's own frequency at each clock update, from
+    the sensor reading in force at it, keeping only updates with one at most
+    max_gap old.  Both logs are stamped to the second, so an update in the
+    same second as a change of the compensation could be on either side of
+    it, and is dropped."""
+    i = np.searchsorted(tt, rt, side="right") - 1
+    known = i >= 0
+    known[known] = rt[known] - tt[i[known]] <= max_gap
+    changed = tt[np.flatnonzero(np.diff(C)) + 1]
+    keep = known & ~np.isin(rt, changed)
+    at, held = rt[keep], i[keep]
+    comp = C[held]
+    return at, T[held], F[keep] * (1 - 1e-6 * comp) - comp
 
 
 def bin_points(Ti, F, step, min_count):
