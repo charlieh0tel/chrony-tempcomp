@@ -62,8 +62,16 @@ next.
    path.  Next: days of `study/pps_raw.py` in quiet running on draws,
    with `chronyc sourcestats`.  Repeat on chronos once it is ready.
    tare has no refclock (its `pps0` is a NIC's PTP device with no
-   edges).  `pps_raw.py --phc` reads apu-0's PHC pin: tested on simulated
-   events only, not yet run on apu-0.
+   edges).
+   `pps_raw.py --phc` works on apu-0: 2 minutes on 2026-11-06
+   (`data/apu-0-pps-check.csv`) gave -22.711 ppm raw against chronyd's
+   own -22.708 (tracking -22.804 less compensation -0.096, read just
+   after), edge deviation 93 ns against draws's 919 ns, clock pair
+   8.4 us.  The NIC reports both pulse edges, and chronyd's PPS samples
+   stayed at 75 a minute before, during and after.  Only that short
+   run: no long or load-step run there yet.  The PHC free-runs 22.8 s
+   behind, within 0.17 ppm of the raw clock over those 2 minutes; whether
+   they share an oscillator is unmeasured.
 2. Then revise the design's lags and the chrony proposal's guidance to
    what that shows.
 3. Then phase 1 (a fixed filter) on one host, for before-and-after

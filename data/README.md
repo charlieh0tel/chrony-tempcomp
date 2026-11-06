@@ -39,5 +39,9 @@ recorded as `real_*`, and `unix_read_ns` is `stamp_read_ns`, as
 `study/pps_step.py --bin 15` on it.  `draws-pps-chronyd.npz` is
 `study/fetch.py --days 1 draws` just after it, for `--chronyd`.
 
+`apu-0-pps-check.csv` is `study/pps_raw.py --phc /dev/ptp2` on apu-0,
+2026-11-06 07:27:57 to 07:29:56 UTC, the recorder's first real run on a
+PHC pin, idle: a row per event, of both pulse edges.
+
 `smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`,
 and `smoothing-apu-0.txt` is `study/smoothing.py --step 0.1 apu-0.npz`.
