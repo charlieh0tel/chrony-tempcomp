@@ -55,5 +55,9 @@ files, 11 and 6 MB, are not here.  `cycles.txt` is its `report` on them:
     pps_cycles.py report apu-0-cycles.npz --sensor-lag 3 --ambient-lag 10 --sensor-only-lag 15
     pps_cycles.py report draws-cycles.npz --sensor-lag 1 --ambient-lag 30 --sensor-only-lag 2
 
+`room.npz` is `study/room_days.py reduce` on that database, one-minute
+samples (`at`, `value`).  `room-days.txt` is its `report` on
+`room.npz apu-0.npz draws.npz`.
+
 `smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`,
 and `smoothing-apu-0.txt` is `study/smoothing.py --step 0.1 apu-0.npz`.

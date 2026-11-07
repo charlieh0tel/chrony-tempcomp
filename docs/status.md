@@ -57,9 +57,14 @@ next.
   5.5 us.  The cause was other work on that GPS, not the host.  draws's journal has no such lines,
   and its `tracking.log` stayed on GPS throughout.
 - Each host runs chronymon on port 8323; `study/fetch.py` reads it.
-- Recorders still run on apu-0 and draws, in `~/tempcomp-run/`.  The
-  raw recordings are there, not in the repo; `data/*-cycles.npz` is
-  their bins to 04:14 UTC on 2026-11-07.
+- Recorders still run on apu-0 and draws, in `~/tempcomp-run/`; apu-0's
+  stops under 64 MB free, and that disk lasts about 8 days at its present
+  loss.  A reboot or apu-0's coming SSD swap ends a recorder: start a new
+  file after, and copy apu-0's off before the swap.
+- Raw recordings are kept out of the repo, in
+  `~/data/chrony-tempcomp/` on the owner's machine, with their logs, the
+  room's database and `SHA256SUMS`; `data/*-cycles.npz` is their bins to
+  04:14 UTC on 2026-11-07.
 
 ## Working rules
 
@@ -71,14 +76,13 @@ next.
 
 ## Next
 
-1. Find why draws's readings fit a 7 min lag when its crystal lags
-   under 1 min under load (design, "Load cycles"): smoothing is about
-   half and a slower path for load's heat is ruled out.  The room is not
-   shown to be the rest: a sensor-and-room model frozen before the
-   cycles did not hold up.  Next: leave-one-day-out over the days already
-   in `data/` with the room's record, not a longer run; a 24 h run would
-   only add the day's swing.  Repeat on chronos once it is ready.  tare
-   has no refclock (its `pps0` is a NIC's PTP device with no edges).
+1. Find why draws fits about 10 min in quiet running when its crystal
+   lags 0.75 min under load (design, "Held-out days").  The 7 min was a
+   blend of that and the 0 that compensation forces; the room's stick
+   does not close the gap.  Next: about 5 days of raw frequency from the
+   recorders now running, judged on held-out days; one day would only be
+   a trend.  Repeat on chronos once it is ready.  tare has no refclock
+   (its `pps0` is a NIC's PTP device with no edges).
    `pps_raw.py --phc` works on apu-0: 2 minutes on 2026-11-06
    (`data/apu-0-pps-check.csv`) gave -22.711 ppm raw against chronyd's
    own -22.708, edge deviation 93 ns against draws's 919 ns, and

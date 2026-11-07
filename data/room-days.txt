@@ -1,0 +1,68 @@
+== apu-0
+all: 9 whole days, sensor and room correlate 0.954
+  held-out RMSE, ppm, by sensor lag in min: alone; with the room's best lag
+      0: 0.0365; 0.0304 at 90
+      1: 0.0340; 0.0283 at 90
+      2: 0.0326; 0.0274 at 60
+      3: 0.0320; 0.0271 at 60
+      5: 0.0315; 0.0271 at 60
+      7: 0.0316; 0.0268 at 30
+     10: 0.0326; 0.0263 at 10
+     15: 0.0358; 0.0258 at 5
+     20: 0.0404; 0.0262 at 5
+  lags chosen on the other days: sensor 0.0317 chose [5, 7]; with the room 0.0260 chose [(15, 5), (15, 10)]
+  the room is better on 8 of 9 days
+compensation off: 0 whole days, too few
+compensation on: 9 whole days, sensor and room correlate 0.953
+  held-out RMSE, ppm, by sensor lag in min: alone; with the room's best lag
+      0: 0.0362; 0.0302 at 90
+      1: 0.0337; 0.0282 at 90
+      2: 0.0323; 0.0274 at 90
+      3: 0.0317; 0.0271 at 60
+      5: 0.0312; 0.0271 at 30
+      7: 0.0313; 0.0267 at 30
+     10: 0.0323; 0.0262 at 10
+     15: 0.0355; 0.0257 at 5
+     20: 0.0401; 0.0263 at 5
+  lags chosen on the other days: sensor 0.0314 chose [5, 7]; with the room 0.0259 chose [(15, 5), (15, 10)]
+  the room is better on 8 of 9 days
+== draws
+all: 9 whole days, sensor and room correlate 0.983
+  held-out RMSE, ppm, by sensor lag in min: alone; with the room's best lag
+      0: 0.0397; 0.0330 at 60
+      1: 0.0353; 0.0300 at 90
+      2: 0.0326; 0.0286 at 90
+      3: 0.0311; 0.0281 at 120
+      5: 0.0294; 0.0280 at 90
+      7: 0.0289; 0.0286 at 60
+     10: 0.0301; 0.0296 at 0
+     15: 0.0353; 0.0323 at 0
+     20: 0.0429; 0.0364 at 5
+  lags chosen on the other days: sensor 0.0289 chose [7]; with the room 0.0285 chose [(3, 90), (3, 120), (5, 90), (5, 120)]
+  the room is better on 4 of 9 days
+compensation off: 5 whole days, sensor and room correlate 0.989
+  held-out RMSE, ppm, by sensor lag in min: alone; with the room's best lag
+      0: 0.0419; 0.0327 at 60
+      1: 0.0334; 0.0250 at 90
+      2: 0.0279; 0.0204 at 120
+      3: 0.0249; 0.0185 at 120
+      5: 0.0212; 0.0174 at 120
+      7: 0.0192; 0.0176 at 120
+     10: 0.0186; 0.0185 at 5
+     15: 0.0231; 0.0219 at 0
+     20: 0.0314; 0.0271 at 180
+  lags chosen on the other days: sensor 0.0186 chose [10]; with the room 0.0177 chose [(5, 120), (7, 120)]
+  the room is better on 4 of 5 days
+compensation on: 3 whole days, sensor and room correlate 0.993
+  held-out RMSE, ppm, by sensor lag in min: alone; with the room's best lag
+      0: 0.0329; 0.0293 at 60
+      1: 0.0380; 0.0356 at 60
+      2: 0.0401; 0.0385 at 60
+      3: 0.0404; 0.0394 at 60
+      5: 0.0401; 0.0399 at 60
+      7: 0.0399; 0.0401 at 60
+     10: 0.0404; 0.0402 at 180
+     15: 0.0434; 0.0407 at 120
+     20: 0.0485; 0.0415 at 120
+  lags chosen on the other days: sensor 0.0329 chose [0]; with the room 0.0296 chose [(0, 60), (0, 90)]
+  the room is better on 3 of 3 days

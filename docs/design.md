@@ -368,8 +368,39 @@ not show it.  Nor is chronyd's window all of it: over the 4 h quiet stretch
 the raw frequency, like chronyd's, fits 10 to 11 min by chronymon's method,
 though a trend that long pins no lag.  Its window can still add a delay
 of about 47 s (half the median 95 s), which these runs cannot rule out.
-What is left is the room over days, judged on held-out days rather than
-one afternoon's trend.
+
+### Held-out days, and what the 7 min was
+
+Each whole day predicted from the others, its lags chosen on the others
+too ([`study/room_days.py`](../study/room_days.py),
+[output](../data/room-days.txt)).  These are chronyd's readings, with its
+window in them; the room is apu-0's stick.
+
+draws's 7 min is a blend.  Its `tempcomp` line came on at 2026-11-01 00:34
+UTC, and the days either side disagree (held-out RMSE, ppm):
+
+| draws | Sensor, 0 min | 1 min | 7 min | 10 min | Lags chosen on other days | With the room |
+|---|---|---|---|---|---|---|
+| Compensation off, 5 days | 0.0419 | 0.0334 | 0.0192 | **0.0186** | 0.0186, 10 min | 0.0177 |
+| Compensation on, 3 days | **0.0329** | 0.0380 | 0.0399 | 0.0404 | 0.0329, 0 min | 0.0296 |
+
+- **With compensation on, the readings cannot give a lag.**  Frequency
+  less compensation holds the raw reading, which favors none (above), and
+  minute-to-minute noise goes from about 0.008 to 0.055 ppm.
+- **With it off, draws fits about 10 min** in quiet running, against 0.75
+  min under load.  The raw frequency's 10 to 11 min over 4 h agrees.
+- **The room does not close that gap on draws.**  The sensor at its fast
+  lag with the room scores 0.0250, against 0.0186 for the sensor alone at
+  10 min; with the room's own best lags the gain is 5%.
+- **On apu-0 the room helps**: 0.0317 to 0.0260, better on 8 of 9 days.
+  But its compensation is on throughout, and the lags chosen (sensor 15
+  min, room 5 to 10) are not the 1.75 min of its cycles, so they are a
+  fit, not a path.
+
+What is left, for draws: a real slow path that the room's stick does not
+capture, the 0.538 degree sensor step (a lag also smooths it), or chronyd's
+window.  Only 5 clean days show this; raw frequency over days, which the
+compensation cannot touch, tells these apart.
 
 ## Phase 1: a fixed filter
 
@@ -607,6 +638,6 @@ requests.
 - Learning by daily refit or by Kalman filter.
 - Proposal for chrony: ask before or after the phase 1 experiment.
 - Several sensors: which hosts to record, and for how long.
-- Measurements: whether draws's leftover delay is chronyd's window or
-  the room's path, on held-out days; the same check on another host
+- Measurements: why draws fits about 10 min in quiet running and 0.75 min
+  under load, from days of raw frequency; the same check on another host
   (chronos, once it is ready).

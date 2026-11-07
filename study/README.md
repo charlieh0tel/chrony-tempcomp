@@ -70,6 +70,11 @@ the others for the fast lag, with and without the room's temperature,
 and scores models frozen before the cycles.  `bin` reduces a recording,
 leaving out `--unusable` spans; `report` runs on what it saved.
 
+`room_days.py` predicts each whole day from the others, its lags chosen
+on the others too, with and without the room's temperature, on all days
+and on those with compensation off and on apart: frequency less
+compensation holds the raw reading, so those with it on cannot give a lag.
+
 `smoothing.py` asks what a fitted lag is, on a host's one-minute
 buckets: a causal lag against the same smoothing with no delay and a
 pure delay; simulated crystals of known lag as a control; and a second,
