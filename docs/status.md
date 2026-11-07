@@ -54,7 +54,7 @@ next.
   ppm higher against its PPS, which came back with a 1.776 ms step,
   so such a span is not the crystal.  chronyd stopped using the PPS: no
   update from 00:17:44 to 00:48:52, when it took NTP at an offset of
-  5.5 us.  The cause is unknown.  draws's journal has no such lines,
+  5.5 us.  The cause was other work on that GPS, not the host.  draws's journal has no such lines,
   and its `tracking.log` stayed on GPS throughout.
 - Each host runs chronymon on port 8323; `study/fetch.py` reads it.
 - Recorders still run on apu-0 and draws, in `~/tempcomp-run/`.  The
