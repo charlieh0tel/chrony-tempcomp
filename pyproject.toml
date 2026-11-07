@@ -16,7 +16,7 @@ package = false
 testpaths = ["study", "tools"]
 
 [tool.mypy]
-files = ["study/pps_raw.py", "study/pps_step.py"]
+files = ["study/pps_raw.py", "study/pps_step.py", "study/pps_cycles.py"]
 ignore_missing_imports = true
 mypy_path = "study"
 

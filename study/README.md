@@ -61,6 +61,15 @@ step's start also carries any settling left from the step before.  A
 frequency that crosses a turn in its curve is not first-order, so its
 step fit means little: judge it by the cross-prediction.
 
+A PPS is only the crystal's reference while its receiver has a fix: a
+u-blox without one read 0.83 ppm off and came back with a 1.8 ms step.
+`pps_step.py` does not know; check the receiver's log for such spans.
+
+`pps_cycles.py`, given repeated load cycles, predicts each cycle from
+the others for the fast lag, with and without the room's temperature,
+and scores models frozen before the cycles.  `bin` reduces a recording,
+leaving out `--unusable` spans; `report` runs on what it saved.
+
 `smoothing.py` asks what a fitted lag is, on a host's one-minute
 buckets: a causal lag against the same smoothing with no delay and a
 pure delay; simulated crystals of known lag as a control; and a second,

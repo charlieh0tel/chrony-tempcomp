@@ -43,5 +43,17 @@ recorded as `real_*`, and `unix_read_ns` is `stamp_read_ns`, as
 2026-11-06 07:27:57 to 07:29:56 UTC, the recorder's first real run on a
 PHC pin, idle: a row per event, of both pulse edges.
 
+`apu-0-cycles.npz` and `draws-cycles.npz` are `study/pps_cycles.py bin`
+on a recording of 2026-11-06 15:50 to 2026-11-07 04:14 UTC, with the
+room's temperature from apu-0's `smartclock-sensord` database (a TEMPer
+stick, every 10 s, in the same corner of the room).  `at_N`, `ppm_N`,
+`sensor_N` and `ambient_N` are N s bins, 15 and 60; `load_on` and
+`load_off` the 4 cycles' times; `first_off` the end of the load step
+before them; `unusable` apu-0's spans without a GPS fix.  The raw CSV
+files, 11 and 6 MB, are not here.  `cycles.txt` is its `report` on them:
+
+    pps_cycles.py report apu-0-cycles.npz --sensor-lag 3 --ambient-lag 10 --sensor-only-lag 15
+    pps_cycles.py report draws-cycles.npz --sensor-lag 1 --ambient-lag 30 --sensor-only-lag 2
+
 `smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`,
 and `smoothing-apu-0.txt` is `study/smoothing.py --step 0.1 apu-0.npz`.

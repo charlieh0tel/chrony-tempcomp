@@ -298,7 +298,8 @@ read through the sensor's 0.538 °C step and noise.
   readings, 60% through 1 min and 40% through 20 min scores 0.0276, the
   best of all; across the load step it predicts to 0.30 and 0.47 ppm
   against 0.11 and 0.15 with no second path.
-- **What is left, untested: chronyd's window, or the room's path.**  In
+- **What was left then: chronyd's window, or the room's path** (see
+  "Load cycles").  In
   quiet running, 64 samples at 16 s is up to 17 min, whose regression
   centers about 8.5 min back, the size of the delay left over.  Or heat
   from the room reaches the crystal and the sensor by paths the load
@@ -319,10 +320,56 @@ read through the sensor's 0.538 °C step and noise.
   compensation, which favors no lag: a 1 min delay scores worse than
   none, and worse than 2 min.  These readings cannot fully separate it.
 
-Telling these apart needs the raw frequency, free of chronyd and of
-the compensation, over days of quiet running: `pps_raw.py` for days,
-with the number of samples chronyd is using
-(`chronyc sourcestats`, read-only).
+### Load cycles
+
+On 2026-11-06 apu-0 and draws each recorded raw frequency for 12 h: one
+30 min load step, about 4.5 h quiet, then 4 cycles of 15 min of
+`stress-ng --cpu 0` and 15 min idle, then quiet
+([`study/pps_cycles.py`](../study/pps_cycles.py),
+[output](../data/cycles.txt)).  Every cycle crosses the same
+temperatures, so predicting one from the others interpolates.  apu-0's
+two spans without a GPS fix are left out.
+
+- **draws's crystal lags its sensor by 0.75 min.**  Each cycle predicted
+  from the others is best at 0.75 min, all four alike, 0.133 ppm against
+  0.174 with no lag and 0.393 at 5 min; 15 s bins have about 0.13 ppm of
+  noise.  Fitted under load and judged out of it, and the reverse, agree
+  (0.5 to 0.75 min).  The room changes nothing: 0.130 with it, same lag.
+- **apu-0's is 2 to 5 min, depending on the room.**  Its load moves the
+  sensor only 2 °C, while the room moved 2 °C over the same 2 h.  Sensor
+  alone is best at 5 min (0.0215 ppm; folds 5 to 7), or 4 by load and
+  rest.  With the room, best at 1.75 min (0.0135; folds 1.25 to 2.5), or
+  2 by load and rest.
+- **A model with the room, frozen beforehand, did not hold up.**  Each
+  host's best sensor-and-room lags were chosen from 45 on the first
+  load step and the quiet after it, and scored 0.005 ppm (apu-0) and
+  0.083 (draws) there, against 0.078 and 0.46 for the sensor at 1 min.
+  That was selection on the scored data.  Frozen, with the coefficients
+  fitted only on the quiet stretch before the cycles (RMSE, ppm):
+
+  | | Cycles | After |
+  |---|---|---|
+  | apu-0, sensor 1 min | 0.045 | 0.036 |
+  | apu-0, sensor 3 + room 10 min | 0.026 | 0.066 |
+  | draws, sensor 1 min | 0.85 | 0.042 |
+  | draws, sensor 1 + room 30 min | 0.55 | 0.026 |
+
+  It ranks 17th and 14th of the 45 on apu-0, 20th and 3rd on draws, so
+  the choice predicted little.  All of the cycles and half of the after
+  are outside the sensor range the quiet fit saw, which is why draws's
+  cycles are poor for every model.  Fitted on all before the cycles,
+  load step included, the room makes draws's cycles worse (0.46 against
+  0.26).  Over 9 to 10 days, sensor and room are 0.95 to 0.98 correlated,
+  so their coefficients trade off.
+
+So the fast path is measured, on draws to a quarter of a minute, and
+draws's 7 min is not it.  The room may be part of the rest, but this does
+not show it.  Nor is chronyd's window all of it: over the 4 h quiet stretch
+the raw frequency, like chronyd's, fits 10 to 11 min by chronymon's method,
+though a trend that long pins no lag.  Its window can still add a delay
+of about 47 s (half the median 95 s), which these runs cannot rule out.
+What is left is the room over days, judged on held-out days rather than
+one afternoon's trend.
 
 ## Phase 1: a fixed filter
 
@@ -561,5 +608,5 @@ requests.
 - Proposal for chrony: ask before or after the phase 1 experiment.
 - Several sensors: which hosts to record, and for how long.
 - Measurements: whether draws's leftover delay is chronyd's window or
-  the room's path, from days of raw frequency; the same check on
-  another host (chronos, once it is ready).
+  the room's path, on held-out days; the same check on another host
+  (chronos, once it is ready).

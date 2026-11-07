@@ -48,7 +48,18 @@ next.
   `refclock PHC /dev/ptp2:extpps:pin=0 ... poll 2`.  `/dev/ptp2` is
   group `_chrony`, so its login can open it.  Kernel 6.12, clocksource
   `tsc`, Python 3.13.
+- apu-0's u-blox lost its fix on 2026-11-06, its first `fix_lost` in
+  chronymond's journal since 2026-10-25: 22:35:11 to 22:36:23 UTC and
+  00:17:29 to 00:54:04 UTC (the 7th).  Without a fix the raw clock read 0.83
+  ppm higher against its PPS, which came back with a 1.776 ms step,
+  so such a span is not the crystal.  chronyd stopped using the PPS: no
+  update from 00:17:44 to 00:48:52, when it took NTP at an offset of
+  5.5 us.  The cause is unknown.  draws's journal has no such lines,
+  and its `tracking.log` stayed on GPS throughout.
 - Each host runs chronymon on port 8323; `study/fetch.py` reads it.
+- Recorders still run on apu-0 and draws, in `~/tempcomp-run/`.  The
+  raw recordings are there, not in the repo; `data/*-cycles.npz` is
+  their bins to 04:14 UTC on 2026-11-07.
 
 ## Working rules
 
@@ -61,20 +72,17 @@ next.
 ## Next
 
 1. Find why draws's readings fit a 7 min lag when its crystal lags
-   about 1 min under a load step (design, "Why the readings fit a longer
-   lag"): smoothing is about half and a slower path for load's heat is
-   ruled out, leaving chronyd's window in quiet running or the room's
-   path.  Next: days of `study/pps_raw.py` in quiet running on draws,
-   with `chronyc sourcestats`.  Repeat on chronos once it is ready.
-   tare has no refclock (its `pps0` is a NIC's PTP device with no
-   edges).
+   under 1 min under load (design, "Load cycles"): smoothing is about
+   half and a slower path for load's heat is ruled out.  The room is not
+   shown to be the rest: a sensor-and-room model frozen before the
+   cycles did not hold up.  Next: leave-one-day-out over the days already
+   in `data/` with the room's record, not a longer run; a 24 h run would
+   only add the day's swing.  Repeat on chronos once it is ready.  tare
+   has no refclock (its `pps0` is a NIC's PTP device with no edges).
    `pps_raw.py --phc` works on apu-0: 2 minutes on 2026-11-06
    (`data/apu-0-pps-check.csv`) gave -22.711 ppm raw against chronyd's
-   own -22.708 (tracking -22.804 less compensation -0.096, read just
-   after), edge deviation 93 ns against draws's 919 ns, clock pair
-   8.4 us.  The NIC reports both pulse edges, and chronyd's PPS samples
-   stayed at 75 a minute before, during and after.  Only that short
-   run: no long or load-step run there yet.  The PHC free-runs 22.8 s
+   own -22.708, edge deviation 93 ns against draws's 919 ns, and
+   chronyd's PPS samples stayed at 75 a minute.  The PHC free-runs 22.8 s
    behind, within 0.17 ppm of the raw clock over those 2 minutes; whether
    they share an oscillator is unmeasured.
 2. Then revise the design's lags and the chrony proposal's guidance to
