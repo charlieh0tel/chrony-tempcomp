@@ -67,6 +67,9 @@ next.
   quadratic fit of the day before (T0 54514, 0, 1.834e-4, -6.856e-9): within
   about 0.05 ppm of the old line over its range.  Raw frequency is
   untouched; chronyd's readings with compensation on split there.
+  apu-0 rebooted at 20:38 UTC on 2026-11-08, ending its first file
+  (`pps-20261106T155019.csv`, 2.2 days, about 21 MB a day); its second
+  started at 23:19 UTC, with 553 MB free.
 - draws stalls as a whole host, about 400 times a day, at about 5% CPU:
   the recorder reads PPS edges up to 1 s late or loses them (957 of
   179259 over 50 h).  57 of chronymond's 62 missed polls of chronyd in
@@ -131,7 +134,10 @@ next.
       less when the compensation fits.  Its spread over 15 min to 4 h
       (`tracking.log`, `tempcomp.log`), `TAU` 300 and 0 (pass-through)
       alternated every day or two for about a week, so weather and load
-      even out.
+      even out.  Dropped on draws (`~/tempcomp-filter/ab/install.sh`,
+      `stop` to end): an hourly cron job installs `TAU` 300 on even UTC
+      days since the epoch and 0 on odd, restarting the filter on a change;
+      the journal (`tempcomp-filter-ab`) has each switch.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
