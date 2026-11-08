@@ -60,7 +60,10 @@ next.
 - Recorders still run on apu-0 and draws, in `~/tempcomp-run/`; apu-0's
   stops under 64 MB free, and that disk lasts about 8 days at its present
   loss.  A reboot or apu-0's coming SSD swap ends a recorder: start a new
-  file after, and copy apu-0's off before the swap.
+  file after, and copy apu-0's off before the swap.  draws rebooted at
+  17:56 UTC on 2026-11-08, ending its first file after 50 h (archived
+  whole); its second started at 18:13 UTC, no load step.  The SSD swap
+  waits on the part.
 - Raw recordings are kept out of the repo, in
   `~/data/chrony-tempcomp/` on the owner's machine, with their logs, the
   room's database and `SHA256SUMS`; `data/*-cycles.npz` is their bins to
