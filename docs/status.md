@@ -126,8 +126,8 @@ next.
       2.0 days (`data/filter-gain-apu-0.txt`; its 0.1 degree sensor has
       little step to smooth) 0.0277 at 180 s and 0.0276 at 300 s against
       0.0316, holdover even at 1 and 4 h; `TAU` 180 there
-      (`tools/hosts/apu-0`, dropped as `~/tempcomp-filter/install.sh`, not
-      yet run).  Repeat on more days:
+      (`tools/hosts/apu-0`), not installed: chronyd's AppArmor profile there
+      reads only sysfs and `/run/chrony`.  Repeat on more days:
       the crystal's own frequency each minute against the installed line
       on the sensor as chronyd reads it (an instant reading every 15 s)
       and on the filter's output (every 5 s through `tau`), same minutes;
@@ -138,10 +138,9 @@ next.
       less when the compensation fits.  Its spread over 15 min to 4 h
       (`tracking.log`, `tempcomp.log`), `TAU` 300 and 0 (pass-through)
       alternated every day or two for about a week, so weather and load
-      even out.  Dropped on draws (`~/tempcomp-filter/ab/install.sh`,
-      `stop` to end): an hourly cron job installs `TAU` 300 on even UTC
-      days since the epoch and 0 on odd, restarting the filter on a change;
-      the journal (`tempcomp-filter-ab`) has each switch.
+      even out.  Not started: a script's cron job on draws ran `TAU` 0
+      from 23:48 to 23:55 UTC on 2026-11-08 and was removed, as changes to
+      a host go in packages.  To come in the package.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
