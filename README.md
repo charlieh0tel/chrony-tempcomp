@@ -7,6 +7,8 @@ temperature.
 - [`tools/chrony_tempcomp.py`](tools/chrony_tempcomp.py) fits a
   `tempcomp` point table and `tools/install_points.sh` installs it
   (below).
+- [`tools/tempcomp-filter.sh`](tools/tempcomp-filter.sh), with its
+  systemd unit, filters the sensor for `tempcomp` (the design's phase 1).
 - [docs/design.md](docs/design.md): why chrony's `tempcomp` fed a raw
   sensor reading fails when the sensor is away from the crystal, or
   noisy and coarse; how the lag is found; a filter program to feed it

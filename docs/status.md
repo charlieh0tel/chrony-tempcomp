@@ -99,5 +99,6 @@ next.
    they share an oscillator is unmeasured.
 2. Then revise the design's lags and the chrony proposal's guidance to
    what that shows.
-3. Then phase 1 (a fixed filter) on one host, for before-and-after
+3. Phase 1's filter is written (`tools/tempcomp-filter.sh`, its unit and
+   draws's settings at a 5 min `tau`), not installed.  Then on one host, for before-and-after
    offset and holdover numbers, and the chrony-dev question.
