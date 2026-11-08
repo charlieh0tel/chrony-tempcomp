@@ -66,7 +66,14 @@ next.
   `tempcomp` line changed at 17:55 UTC, just before, to chronymon's
   quadratic fit of the day before (T0 54514, 0, 1.834e-4, -6.856e-9): within
   about 0.05 ppm of the old line over its range.  Raw frequency is
-  untouched; chronyd's readings with compensation on split there.  The SSD swap
+  untouched; chronyd's readings with compensation on split there.
+- draws stalls as a whole host, about 400 times a day, at about 5% CPU:
+  the recorder reads PPS edges up to 1 s late or loses them (957 of
+  179259 over 50 h).  57 of chronymond's 62 missed polls of chronyd in
+  that span (no reply in 3 s) fall on one, against 5.5% by chance.
+  Likely writes to its 8 GB SD card; the misses rose from 5 a day to
+  about 25 once the recorder ran, so it may add to them.  Edges are
+  stamped by the kernel, so a stall loses samples without skewing them.  The SSD swap
   waits on the part.
 - Raw recordings are kept out of the repo, in
   `~/data/chrony-tempcomp/` on the owner's machine, with their logs, the
