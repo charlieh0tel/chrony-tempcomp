@@ -62,7 +62,11 @@ next.
   loss.  A reboot or apu-0's coming SSD swap ends a recorder: start a new
   file after, and copy apu-0's off before the swap.  draws rebooted at
   17:56 UTC on 2026-11-08, ending its first file after 50 h (archived
-  whole); its second started at 18:13 UTC, no load step.  The SSD swap
+  whole); its second started at 18:13 UTC, no load step.  Its
+  `tempcomp` line changed at 17:55 UTC, just before, to chronymon's
+  quadratic fit of the day before (T0 54514, 0, 1.834e-4, -6.856e-9): within
+  about 0.05 ppm of the old line over its range.  Raw frequency is
+  untouched; chronyd's readings with compensation on split there.  The SSD swap
   waits on the part.
 - Raw recordings are kept out of the repo, in
   `~/data/chrony-tempcomp/` on the owner's machine, with their logs, the
