@@ -13,3 +13,6 @@ TAU=300
 
 # Seconds between readings.
 PERIOD=5
+
+# Seconds between summaries in the log.
+STATS_INTERVAL=900

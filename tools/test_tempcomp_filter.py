@@ -63,6 +63,7 @@ def start(tmp_path, sensor, **changes):
     return subprocess.Popen(
         [SCRIPT, "run"],
         env=settings(tmp_path, sensor, **changes),
+        stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
@@ -157,3 +158,55 @@ def test_settings_come_from_the_defaults_file(tmp_path):
     result = command(tmp_path, sensor, "off", DEFAULTS=str(defaults), OFF_VALUE="")
     assert result.returncode == 0
     assert (tmp_path / "temp").read_text() == "12345\n"
+
+
+def test_the_log_has_the_start_and_a_summary_each_interval(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    process = start(tmp_path, sensor, STATS_INTERVAL="0.3")
+    wait_for(tmp_path / "temp")
+    sensor.write_text("50400\n")
+    time.sleep(1.0)
+    stop(process)
+    log = process.stdout.read()
+    assert "start: " + str(sensor) + ", tau 300 s; from the first reading" in log
+    summaries = [line for line in log.splitlines() if " readings, " in line]
+    assert len(summaries) >= 2
+    assert any("sensor 50000 to 50400" in line for line in summaries)
+    assert all("0 failed" in line for line in summaries)
+
+
+def test_a_restart_says_what_it_carries_on_from(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    with open("/proc/uptime") as uptime:
+        now = float(uptime.read().split()[0])
+    (tmp_path / "temp.state").write_text(f"49000.0 {now}\n")
+    process = start(tmp_path, sensor)
+    wait_for(tmp_path / "temp")
+    stop(process)
+    assert "carrying on from 49000.0" in process.stdout.read()
+
+
+def test_a_gap_restart_is_logged(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("60000\n")
+    (tmp_path / "temp.state").write_text("50000.0 0\n")
+    process = start(tmp_path, sensor, TAU="1")
+    wait_for(tmp_path / "temp")
+    stop(process)
+    assert "restarting from the reading, 60000, after" in process.stdout.read()
+
+
+def test_a_failure_is_logged_once_and_its_recovery_with_its_length(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    process = start(tmp_path, sensor)
+    wait_for(tmp_path / "temp")
+    sensor.unlink()
+    time.sleep(0.6)
+    sensor.write_text("50000\n")
+    time.sleep(0.4)
+    stop(process)
+    assert process.stderr.read().count("cannot read") == 1
+    assert f"{sensor} read again after " in process.stdout.read()

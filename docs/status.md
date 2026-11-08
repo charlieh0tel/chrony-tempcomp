@@ -112,6 +112,9 @@ next.
    from its restart at 20:45:09 until then.  Before: 2026-11-01 to
    11-08 on a line within 0.05 ppm of this one, unfiltered.  Next: the
    after numbers, offset and holdover, and the chrony-dev question.
+   The script is at the limit of shell (floats and stats through `awk`,
+   several processes a reading): its next change moves it to Python, or
+   to Rust with phase 2.
 4. Integrate with chronymon.  chronymond reads the `tempcomp` line's
    sensor (`crates/chronymond/src/config.rs`, comments skipped), so with
    the filter it sees `/run/tempcomp-filter/temp` and no more: not that

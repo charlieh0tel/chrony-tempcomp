@@ -22,6 +22,11 @@
 #   OFF_VALUE  the tempcomp line's T0 when its k0 is 0: no compensation
 #   GAP_TAUS   restart from the reading after a gap of this many TAU
 #              (default 10)
+#   STATS_INTERVAL  seconds between summaries in the log (default 900)
+#
+# Logs its start, a restart from the reading after a gap, a sensor's
+# failure and recovery, and every STATS_INTERVAL the readings taken and
+# failed, the sensor's range and last reading, and the filtered value.
 #
 # A stop, a restart or a crash leaves the last value, a sane temperature;
 # a restart carries on from the saved state.  Only `off` (the package runs it
@@ -37,8 +42,13 @@ fi
 readonly PERIOD=${PERIOD:-5}
 readonly OUTPUT=${OUTPUT:-/run/tempcomp-filter/temp}
 readonly GAP_TAUS=${GAP_TAUS:-10}
+readonly STATS_INTERVAL=${STATS_INTERVAL:-900}
 # The filter's value and the uptime it was taken at, kept across restarts.
 readonly STATE="${OUTPUT}.state"
+
+log() {
+  echo "tempcomp-filter: $*"
+}
 
 err() {
   echo "tempcomp-filter: $*" >&2
@@ -97,25 +107,61 @@ check() {
 
 run() {
   check
-  local f="" taken="" reading now gap
+  local f="" taken="" reading now gap since failing=""
+  # Since the last summary: readings, failures, and the sensor's range.
+  local count=0 failed=0 low="" high="" last="" summarized
   if [[ -r "${STATE}" ]]; then
     read -r f taken < "${STATE}"
   fi
   gap=$(awk -v t="${TAU}" -v n="${GAP_TAUS}" 'BEGIN { print t * n }')
+  summarized=$(uptime_seconds)
+  if [[ -n "${f}" ]]; then
+    log "start: ${SENSOR}, tau ${TAU} s; carrying on from ${f}"
+  else
+    log "start: ${SENSOR}, tau ${TAU} s; from the first reading"
+  fi
   while true; do
     now=$(uptime_seconds)
     if ! read -r reading < "${SENSOR}"; then
-      err "cannot read ${SENSOR}; keeping ${f:-nothing}"
-    elif [[ -z "${f}" ]] || is_longer "$(elapsed "${taken}" "${now}")" "${gap}"; then
-      f=$(step 0 "${reading}" 0 0)
-      taken=${now}
+      failed=$((failed + 1))
+      if [[ -z "${failing}" ]]; then
+        err "cannot read ${SENSOR}; keeping ${f:-nothing}"
+        failing=${now}
+      fi
     else
-      f=$(step "${f}" "${reading}" "$(elapsed "${taken}" "${now}")" "${TAU}")
+      if [[ -n "${failing}" ]]; then
+        log "${SENSOR} read again after $(elapsed "${failing}" "${now}") s"
+        failing=""
+      fi
+      count=$((count + 1))
+      last=${reading}
+      if [[ -z "${low}" ]] || is_longer "${low}" "${reading}"; then
+        low=${reading}
+      fi
+      if [[ -z "${high}" ]] || is_longer "${reading}" "${high}"; then
+        high=${reading}
+      fi
+      if [[ -z "${f}" ]]; then
+        f=$(step 0 "${reading}" 0 0)
+      else
+        since=$(elapsed "${taken}" "${now}")
+        if is_longer "${since}" "${gap}"; then
+          log "restarting from the reading, ${reading}, after ${since} s"
+          f=$(step 0 "${reading}" 0 0)
+        else
+          f=$(step "${f}" "${reading}" "${since}" "${TAU}")
+        fi
+      fi
       taken=${now}
-    fi
-    if [[ -n "${f}" ]]; then
       write_atomically "${f}" "${OUTPUT}"
       write_atomically "${f} ${taken}" "${STATE}"
+    fi
+    since=$(elapsed "${summarized}" "${now}")
+    if ! is_longer "${STATS_INTERVAL}" "${since}"; then
+      log "last ${since} s: ${count} readings, ${failed} failed;" \
+        "sensor ${low:-none} to ${high:-none}, last ${last:-none};" \
+        "filtered ${f:-none}"
+      count=0 failed=0 low="" high="" last="" summarized=${now}
     fi
     ping_watchdog
     sleep "${PERIOD}"
