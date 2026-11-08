@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-readonly VERSION=0.1.0
+readonly VERSION=0.1.1
 TOOLS=$(cd "$(dirname "$0")" && pwd)
 readonly TOOLS
 readonly OUTPUT=${1:-dist}

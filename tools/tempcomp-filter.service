@@ -16,7 +16,9 @@ ExecStart=/usr/sbin/tempcomp-filter run
 Restart=always
 RestartSec=5
 WatchdogSec=60
-DynamicUser=yes
+# Root without capabilities, not DynamicUser: that puts the runtime
+# directory under /run/private, 0700, where chronyd cannot read it.
+CapabilityBoundingSet=
 RuntimeDirectory=tempcomp-filter
 RuntimeDirectoryMode=0755
 # Keep the state, and the last value chronyd reads, across restarts.

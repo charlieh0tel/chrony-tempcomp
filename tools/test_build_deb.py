@@ -37,3 +37,11 @@ def test_the_package_holds_the_filter_its_unit_and_its_settings(tmp_path):
     assert "@VERSION@" not in fields
     for script in ("postinst", "prerm", "postrm"):
         assert (control / script).stat().st_mode & 0o111
+
+
+def test_the_unit_leaves_its_output_where_chronyd_can_read_it():
+    unit = BUILD.with_name("tempcomp-filter.service").read_text()
+    settings = [line for line in unit.splitlines() if not line.startswith("#")]
+    # DynamicUser puts RuntimeDirectory under /run/private, 0700.
+    assert not any(line.startswith("DynamicUser=yes") for line in settings)
+    assert "RuntimeDirectoryMode=0755" in settings

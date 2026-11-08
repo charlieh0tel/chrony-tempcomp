@@ -453,7 +453,9 @@ compensation, is to confirm it.
 [`tools/tempcomp-filter.sh`](../tools/tempcomp-filter.sh) is this as a
 shell script, with [its unit](../tools/tempcomp-filter.service), packaged
 by [`tools/build_deb.sh`](../tools/build_deb.sh) as `tempcomp-filter`,
-writing `/run/tempcomp-filter/temp`.  It does not start until
+writing `/run/tempcomp-filter/temp`.  It runs as root with no capabilities, not
+`DynamicUser`, which puts the runtime directory under `/run/private`
+(0700), out of chronyd's reach.  It does not start until
 `/etc/default/tempcomp-filter` names the sensor and the off value
 (`ExecCondition`).  A host's settings and its `tempcomp` line are whole
 files in [`tools/hosts`](../tools/hosts), the line in its own conf.d file,
