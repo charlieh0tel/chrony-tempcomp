@@ -18,7 +18,8 @@ file, T, computes
     comp = k0 + (T - T0) k1 + (T - T0)^2 k2      (ppm)
 
 and applies it to the clock's frequency at once (`read_timeout`,
-`LCL_SetTempComp`, `tempcomp.c`, chrony 4.6).  There is no smoothing:
+`LCL_SetTempComp`, `tempcomp.c`, chrony 4.6; draws runs 4.3, whose
+`local.c` is the same and whose point lookup behaves the same).  There is no smoothing:
 each reading's compensation replaces the last.  chronyd's own loop
 then estimates whatever frequency error remains, from its reference,
 at its update interval.
