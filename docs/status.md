@@ -112,8 +112,23 @@ next.
    from its restart at 20:45:09 until then.  0.1.2 (logging) from 21:07:09;
    its upgrade held the compensation still from 21:05:53, as the package's
    blank settings replaced draws's.  Before: 2026-11-01 to
-   11-08 on a line within 0.05 ppm of this one, unfiltered.  Next: the
-   after numbers, offset and holdover, and the chrony-dev question.
+   11-08 on a line within 0.05 ppm of this one, unfiltered.  Whether it
+   beats the unfiltered sensor, in three tests:
+   1. Replay on the raw recording (`study/filter_gain.py`, in progress):
+      the crystal's own frequency each minute against the installed line
+      on the sensor as chronyd reads it (an instant reading every 15 s)
+      and on the filter's output (every 5 s through `tau`), same minutes;
+      RMS of what is left, day by day, and the time error it would build
+      over 1, 4 and 24 h of holdover.  Free of chronyd; tries other `tau`
+      and two speeds without touching the host.
+   2. On the host: chronyd's frequency, less the compensation, wanders
+      less when the compensation fits.  Its spread over 15 min to 4 h
+      (`tracking.log`, `tempcomp.log`), `TAU` 300 and 0 (pass-through)
+      alternated every day or two for about a week, so weather and load
+      even out.
+   3. Holdover: the reference cut for a few hours, filter on and off, the
+      time error against the recorder's PPS.  The before-and-after
+      numbers, and the chrony-dev question.
    The script is at the limit of shell (floats and stats through `awk`,
    several processes a reading): its next change moves it to Python, or
    to Rust with phase 2.  Then its settings move to
