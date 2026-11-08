@@ -315,7 +315,7 @@ read through the sensor's 0.538 °C step and noise.
   which is what chronyd's window would give.  A short sensor path on
   apu-0 would give it too.  One `sourcestats` on apu-0 on 2026-11-05
   showed 6 samples over 20 s, and one on draws 9 over 129 s, both well
-  under that limit; how many each keeps over time is not yet known.
+  under that limit.  Over 50 h draws kept a median 86 s ("The 10 min").
 - `frequency - compensation` also holds the raw reading, through the
   compensation, which favors no lag: a 1 min delay scores worse than
   none, and worse than 2 min.  These readings cannot fully separate it.
@@ -397,10 +397,40 @@ UTC, and the days either side disagree (held-out RMSE, ppm):
   min, room 5 to 10) are not the 1.75 min of its cycles, so they are a
   fit, not a path.
 
-What is left, for draws: a real slow path that the room's stick does not
+What was left, for draws: a real slow path that the room's stick does not
 capture, the 0.538 degree sensor step (a lag also smooths it), or chronyd's
-window.  Only 5 clean days show this; raw frequency over days, which the
-compensation cannot touch, tells these apart.
+window.
+
+### The 10 min
+
+`smoothing.py --compensation off` on draws's 5 clean days
+([output](../data/smoothing-off.txt)), held-out RMSE, ppm:
+
+| | None | Causal lag | Same smoothing, no delay | Pure delay |
+|---|---|---|---|---|
+| The readings | 0.0420 | **0.0179 at 10 min** | 0.0278 at 7 min | 0.0383 at 2 min |
+| Control: crystal 1 min behind | 0.0449 | 0.0373 at 3 min | 0.0352 at 7 min | |
+| Control: crystal 7 min behind | 0.0405 | 0.0219 at 7 min | 0.0264 at 10 min | |
+| Control: crystal 10 min behind | 0.0446 | 0.0205 at 10 min | 0.0317 at 10 min | |
+
+- **The sensor's step does not explain it.**  Through the 0.538 °C step a
+  1 min crystal fits 3 min, and smoothing with no delay beats the causal
+  lag.  The readings show the reverse, by what a crystal 7 to 10 min
+  behind gives.
+- **Nor does chronyd's window.**  Over draws's 50 h recording
+  (2026-11-06 to 08, 602 `sourcestats` every 5 min) GPS kept 6 to 25
+  samples, spanning a median of 86 s (90th percentile 175 s, longest
+  385 s): a delay of about 45 s, not 10 min.  That recording had
+  compensation on; the window is set by the PPS's noise, not by it.
+- **Two paths fit as well as one slow lag:** 20% through 1 min and 80%
+  through 10 min scores 0.0180, against 0.0179.
+
+So, on chronyd's readings, draws's crystal follows the quiet room's slow
+changes about 10 min behind its sensor, and the CPU's load 0.75 min
+behind.  Heat from the load reaches the sensor and the crystal by
+one path, and from the room by others; the room's stick sees too little of
+it to help.  Raw frequency over days, free of chronyd and the
+compensation, is to confirm it.
 
 ## Phase 1: a fixed filter
 

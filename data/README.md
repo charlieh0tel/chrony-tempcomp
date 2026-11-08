@@ -61,3 +61,5 @@ samples (`at`, `value`).  `room-days.txt` is its `report` on
 
 `smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`,
 and `smoothing-apu-0.txt` is `study/smoothing.py --step 0.1 apu-0.npz`.
+`smoothing-off.txt` is `study/smoothing.py --compensation off draws.npz`,
+its 5 whole days before the `tempcomp` line came on.

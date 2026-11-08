@@ -485,3 +485,27 @@ def test_two_paths_shares_add_up():
     step = np.concatenate([np.zeros(10), np.ones(200)])
     fast = pps_step.lag(step, 60.0, 60.0)
     assert np.allclose(smoothing.two_paths(step, 1.0, 20, 60.0), fast)
+
+
+def test_read_host_keeps_the_days_with_compensation_off_or_on(tmp_path):
+    day = 86400
+    at = np.arange(0.0, 4 * day, smoothing.BUCKET)
+    compensation = np.where(at >= 1.5 * day, 0.1, 0.0)
+    path = tmp_path / "host.npz"
+    np.savez(
+        path,
+        at=at,
+        temperature=np.full(len(at), 40000.0),
+        frequency=compensation + 1.0,
+        compensation=compensation,
+    )
+    u, y, good = smoothing.read_host(path)
+    assert len(u) == len(at)
+    u, y, good = smoothing.read_host(path, "off")
+    assert len(u) == day / smoothing.BUCKET
+    assert np.allclose(y, 1.0) and good.all()
+    u, y, good = smoothing.read_host(path, "on")
+    assert len(u) == 2 * day / smoothing.BUCKET
+    np.savez(path, at=at, temperature=at, frequency=at, compensation=0 * at)
+    with pytest.raises(SystemExit):
+        smoothing.read_host(path, "on")

@@ -17,13 +17,15 @@ the temperature, by held-out error:
   Given a pps_raw.py run with a load step, the same shares are judged on
   it, fitted on one side of the load's end and predicting the other.
 
-Usage: python3 smoothing.py [--step DEGREES] [--run RUN.csv] HOST.npz
+Usage: python3 smoothing.py [--step DEGREES] [--run RUN.csv]
+       [--compensation off|on] HOST.npz
 """
 
 import argparse
 
 import numpy as np
 import pps_step
+import room_days
 from common import cross_validate, design, huber_fit, lag
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import lfilter
@@ -83,12 +85,20 @@ def filled(values):
     return np.interp(np.arange(len(values)), np.flatnonzero(known), values[known])
 
 
-def read_host(path):
+def read_host(path, compensation=None):
     """(temperature in degrees C with its gaps filled, the clock's own
-    frequency, which buckets have both)."""
+    frequency, which buckets have both), on the whole days with chronyd's
+    compensation `compensation` ("off" or "on"), or all."""
     data = np.load(path)
-    u = data["temperature"] / 1000.0
-    y = data["frequency"] - data["compensation"]
+    keep = np.ones(len(data["at"]), dtype=bool)
+    if compensation is not None:
+        spans = room_days.compensation_spans(data["at"], data["compensation"])
+        name = f"compensation {compensation}"
+        if name not in spans:
+            raise SystemExit(f"{path}: no days with {name}")
+        keep = spans[name]
+    u = data["temperature"][keep] / 1000.0
+    y = data["frequency"][keep] - data["compensation"][keep]
     return filled(u), y, ~np.isnan(u) & ~np.isnan(y)
 
 
@@ -146,9 +156,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--step", type=float, default=0.538, help="sensor's step, C")
     parser.add_argument("--run", help="a pps_raw.py run with a load step")
+    parser.add_argument(
+        "--compensation",
+        choices=("off", "on"),
+        help="only the whole days with chronyd's compensation off or on",
+    )
     parser.add_argument("host")
     args = parser.parse_args()
-    u, y, good = read_host(args.host)
+    u, y, good = read_host(args.host, args.compensation)
     print(f"{args.host}: {good.sum() / 1440:.1f} days of one-minute buckets")
     print("held-out RMSE, ppm, by time constant in min")
     print(" tau   causal  fwd-back  delay")

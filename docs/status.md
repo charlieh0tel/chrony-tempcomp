@@ -82,7 +82,8 @@ next.
 1. Find why draws fits about 10 min in quiet running when its crystal
    lags 0.75 min under load (design, "Held-out days").  The 7 min was a
    blend of that and the 0 that compensation forces; the room's stick
-   does not close the gap.  Next: about 5 days of raw frequency from the
+   does not close the gap, and neither the sensor's step nor chronyd's
+   window explains it (design, "The 10 min").  Next: about 5 days of raw frequency from the
    recorders now running, judged on held-out days; one day would only be
    a trend.  Repeat on chronos once it is ready.  tare has no refclock
    (its `pps0` is a NIC's PTP device with no edges).

@@ -79,7 +79,8 @@ compensation holds the raw reading, so those with it on cannot give a lag.
 buckets: a causal lag against the same smoothing with no delay and a
 pure delay; simulated crystals of known lag as a control; and a second,
 slower path, judged on the readings and on a load step's run
-(`--run`).
+(`--run`).  `--compensation off` or `on` keeps only those whole days, as
+`room_days.py` splits them.
 
 The design's result is `pps_step.py --bin 15` on
 [`data/draws-pps.csv`](../data/draws-pps.csv), and for the comparison
