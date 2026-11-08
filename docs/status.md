@@ -106,10 +106,12 @@ next.
    they share an oscillator is unmeasured.
 2. Then revise the design's lags and the chrony proposal's guidance to
    what that shows.
-3. Phase 1's filter is written and packaged (`tools/build_deb.sh`), with
-   draws's settings and `tempcomp` line at a 5 min `tau` in
-   `tools/hosts/draws`, not installed.  Then on one host, for before-and-after
-   offset and holdover numbers, and the chrony-dev question.
+3. Phase 1's filter is packaged (`tools/build_deb.sh`) and runs on draws
+   at a 5 min `tau` (`tools/hosts/draws`): `tempcomp-filter` 0.1.1, read
+   by chronyd from 2026-11-08 20:49:09 UTC.  chronyd ran uncompensated
+   from its restart at 20:45:09 until then.  Before: 2026-11-01 to
+   11-08 on a line within 0.05 ppm of this one, unfiltered.  Next: the
+   after numbers, offset and holdover, and the chrony-dev question.
 4. Integrate with chronymon.  chronymond reads the `tempcomp` line's
    sensor (`crates/chronymond/src/config.rs`, comments skipped), so with
    the filter it sees `/run/tempcomp-filter/temp` and no more: not that
