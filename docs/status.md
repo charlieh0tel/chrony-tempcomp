@@ -110,3 +110,13 @@ next.
    draws's settings and `tempcomp` line at a 5 min `tau` in
    `tools/hosts/draws`, not installed.  Then on one host, for before-and-after
    offset and holdover numbers, and the chrony-dev question.
+4. Integrate with chronymon.  chronymond reads the `tempcomp` line's
+   sensor (`crates/chronymond/src/config.rs`, comments skipped), so with
+   the filter it sees `/run/tempcomp-filter/temp` and no more: not that
+   the reading is filtered, nor its `tau`.  Its Temperature page, lag and
+   refits then work on a sensor already `tau` behind, and the line it
+   writes must name the filter's file.  To settle: how chronymond learns
+   of the filter (its settings file, or a marker agreed with it), whether
+   it fits against the raw sensor or the filtered one, and who owns the
+   conf.d file.  chrony applies the line; the filter only delays the
+   sensor (design, phase 1 and 2).
