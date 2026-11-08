@@ -109,7 +109,9 @@ next.
 3. Phase 1's filter is packaged (`tools/build_deb.sh`) and runs on draws
    at a 5 min `tau` (`tools/hosts/draws`): `tempcomp-filter` 0.1.1, read
    by chronyd from 2026-11-08 20:49:09 UTC.  chronyd ran uncompensated
-   from its restart at 20:45:09 until then.  Before: 2026-11-01 to
+   from its restart at 20:45:09 until then.  0.1.2 (logging) from 21:07:09;
+   its upgrade held the compensation still from 21:05:53, as the package's
+   blank settings replaced draws's.  Before: 2026-11-01 to
    11-08 on a line within 0.05 ppm of this one, unfiltered.  Next: the
    after numbers, offset and holdover, and the chrony-dev question.
    The script is at the limit of shell (floats and stats through `awk`,
