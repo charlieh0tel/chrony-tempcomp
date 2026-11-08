@@ -69,5 +69,13 @@ steps and an hour after each left out, with the installed line:
         --line 54514 0 0.0001834 -6.856e-9 \
         --exclude 1793982144:1793987547 1794000510:1794010421
 
+`filter-gain-apu-0.txt` is the same on apu-0's recording of 2026-11-06
+15:50 to 11-08 20:37 UTC, also leaving out its two spans without a fix:
+
+    filter_gain.py pps-20261106T155019.csv --sensor /sys/class/hwmon/hwmon0/temp1_input \
+        --line 63223 0 0.0001283 -6.25e-9 \
+        --exclude 1793982019:1793987419 1794000506:1794010407 \
+        1794004511:1794004583 1794010649:1794012844
+
 `smoothing-off.txt` is `study/smoothing.py --compensation off draws.npz`,
 its 5 whole days before the `tempcomp` line came on.

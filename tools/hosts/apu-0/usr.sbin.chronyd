@@ -1,0 +1,2 @@
+# /etc/apparmor.d/local/usr.sbin.chronyd on apu-0: the filter's output.
+/run/tempcomp-filter/temp r,

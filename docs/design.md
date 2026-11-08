@@ -464,8 +464,8 @@ replaced, never edited.  The unit is `Type=simple`: systemd 252 can
 lose a short-lived `systemd-notify`'s `READY=1`, failing the start, where a
 lost watchdog ping is covered by the next.  Debian's AppArmor profile for
 chronyd reads only sysfs sensors and `/run/chrony`; where AppArmor is on
-(not on draws), `/run/tempcomp-filter/temp r,` goes in
-`/etc/apparmor.d/local/usr.sbin.chronyd`.
+(apu-0, not draws), `/run/tempcomp-filter/temp r,` goes in
+`/etc/apparmor.d/local/usr.sbin.chronyd` (`tools/hosts/apu-0`).
 
 A Kalman filter with this model (the crystal's temperature as the
 state, a first-order lag as its process, the sensor's jitter as the

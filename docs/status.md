@@ -122,8 +122,12 @@ next.
       filter at 300 s leaves 0.0256 ppm RMS against 0.0412 unfiltered,
       better on each day; holdover error 44 against 65 us after 1 h, 248
       against 325 after 4 h.  180 s scores 0.0250, 600 s 0.0311.  The line
-      was fitted to the unfiltered sensor, which favors it.  Repeat on more
-      days and on apu-0:
+      was fitted to the unfiltered sensor, which favors it.  On apu-0's
+      2.0 days (`data/filter-gain-apu-0.txt`; its 0.1 degree sensor has
+      little step to smooth) 0.0277 at 180 s and 0.0276 at 300 s against
+      0.0316, holdover even at 1 and 4 h; `TAU` 180 there
+      (`tools/hosts/apu-0`, dropped as `~/tempcomp-filter/install.sh`, not
+      yet run).  Repeat on more days:
       the crystal's own frequency each minute against the installed line
       on the sensor as chronyd reads it (an instant reading every 15 s)
       and on the filter's output (every 5 s through `tau`), same minutes;
