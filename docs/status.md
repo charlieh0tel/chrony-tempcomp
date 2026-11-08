@@ -116,7 +116,9 @@ next.
    after numbers, offset and holdover, and the chrony-dev question.
    The script is at the limit of shell (floats and stats through `awk`,
    several processes a reading): its next change moves it to Python, or
-   to Rust with phase 2.
+   to Rust with phase 2.  Then its settings move to
+   `/etc/default/chrony-tempcomp`, a conffile shipped all commented out,
+   with the defaults in the program.
 4. Integrate with chronymon.  chronymond reads the `tempcomp` line's
    sensor (`crates/chronymond/src/config.rs`, comments skipped), so with
    the filter it sees `/run/tempcomp-filter/temp` and no more: not that
