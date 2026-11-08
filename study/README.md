@@ -83,6 +83,11 @@ leaving out `--exclude` spans (no fix; a load step and its settling), so
     python3 raw_minutes.py pps-*.csv --sensor /sys/class/hwmon/hwmon0/temp1_input \
         --exclude FROM:TO ... -o draws-raw.npz
 
+`filter_gain.py` replays recordings through the `tempcomp` line, the
+sensor read as chronyd reads it and through the filter at each time
+constant, and scores each against the crystal's own frequency: RMS, day
+by day, and the time error over 1, 4 and 24 h of holdover.
+
 `smoothing.py` asks what a fitted lag is, on a host's one-minute
 buckets: a causal lag against the same smoothing with no delay and a
 pure delay; simulated crystals of known lag as a control; and a second,

@@ -61,5 +61,13 @@ samples (`at`, `value`).  `room-days.txt` is its `report` on
 
 `smoothing.txt` is `study/smoothing.py draws.npz --run draws-pps.csv`,
 and `smoothing-apu-0.txt` is `study/smoothing.py --step 0.1 apu-0.npz`.
+`filter-gain-draws.txt` is `study/filter_gain.py` on draws's recording
+of 2026-11-06 15:52 to 11-08 17:55 UTC (archived, not here), its load
+steps and an hour after each left out, with the installed line:
+
+    filter_gain.py pps-20261106T155224.csv --sensor /sys/class/hwmon/hwmon0/temp1_input \
+        --line 54514 0 0.0001834 -6.856e-9 \
+        --exclude 1793982144:1793987547 1794000510:1794010421
+
 `smoothing-off.txt` is `study/smoothing.py --compensation off draws.npz`,
 its 5 whole days before the `tempcomp` line came on.

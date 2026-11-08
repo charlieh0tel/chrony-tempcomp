@@ -114,7 +114,13 @@ next.
    blank settings replaced draws's.  Before: 2026-11-01 to
    11-08 on a line within 0.05 ppm of this one, unfiltered.  Whether it
    beats the unfiltered sensor, in three tests:
-   1. Replay on the raw recording (`study/filter_gain.py`, in progress):
+   1. Replay on the raw recording (`study/filter_gain.py`;
+      `data/filter-gain-draws.txt`).  On draws's 1.9 quiet days the
+      filter at 300 s leaves 0.0256 ppm RMS against 0.0412 unfiltered,
+      better on each day; holdover error 44 against 65 us after 1 h, 248
+      against 325 after 4 h.  180 s scores 0.0250, 600 s 0.0311.  The line
+      was fitted to the unfiltered sensor, which favors it.  Repeat on more
+      days and on apu-0:
       the crystal's own frequency each minute against the installed line
       on the sensor as chronyd reads it (an instant reading every 15 s)
       and on the filter's output (every 5 s through `tau`), same minutes;
