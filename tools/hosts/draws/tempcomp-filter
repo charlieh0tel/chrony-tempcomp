@@ -1,0 +1,15 @@
+# /etc/default/tempcomp-filter on draws.
+
+# The sensor chronyd's tempcomp line read before the filter.
+SENSOR=/sys/class/hwmon/hwmon0/temp1_input
+
+# The tempcomp line's T0, when its k0 is 0: no compensation.  Written by
+# `tempcomp-filter off`, which removing the package runs.
+OFF_VALUE=54514
+
+# Time constant, seconds; 0 passes the reading through unfiltered.  5 min
+# from draws's quiet raw frequency of 2026-11-06 to 08 (docs/status.md).
+TAU=300
+
+# Seconds between readings.
+PERIOD=5

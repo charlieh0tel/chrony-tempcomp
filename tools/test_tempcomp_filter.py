@@ -47,17 +47,34 @@ def wait_for(path, predicate=lambda text: True):
     raise AssertionError(f"{path} never written")
 
 
-def start(tmp_path, sensor, **settings):
-    environment = {
+def settings(tmp_path, sensor, **changes):
+    return {
         "PATH": os.environ["PATH"],
+        "DEFAULTS": str(tmp_path / "none"),
         "SENSOR": str(sensor),
         "TAU": "300",
         "PERIOD": "0.1",
         "OUTPUT": str(tmp_path / "temp"),
         "OFF_VALUE": "54514",
-    } | settings
+    } | changes
+
+
+def start(tmp_path, sensor, **changes):
     return subprocess.Popen(
-        [SCRIPT, "run"], env=environment, stderr=subprocess.PIPE, text=True
+        [SCRIPT, "run"],
+        env=settings(tmp_path, sensor, **changes),
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def command(tmp_path, sensor, name, **changes):
+    return subprocess.run(
+        [SCRIPT, name],
+        check=False,
+        env=settings(tmp_path, sensor, **changes),
+        capture_output=True,
+        text=True,
     )
 
 
@@ -66,7 +83,7 @@ def stop(process):
     return process.wait(timeout=WAIT)
 
 
-def test_the_loop_starts_from_the_reading_and_turns_off_on_stop(tmp_path):
+def test_the_loop_starts_from_the_reading_and_a_stop_keeps_the_last(tmp_path):
     sensor = tmp_path / "sensor"
     sensor.write_text("50000\n")
     process = start(tmp_path, sensor)
@@ -76,8 +93,8 @@ def test_the_loop_starts_from_the_reading_and_turns_off_on_stop(tmp_path):
         moved = float(wait_for(tmp_path / "temp", lambda text: float(text) > 50000))
         assert 50000 < moved < 50100
     finally:
-        assert stop(process) == 0
-    assert (tmp_path / "temp").read_text() == "54514\n"
+        stop(process)
+    assert 50000 < float((tmp_path / "temp").read_text()) < 50100
 
 
 def test_a_restart_carries_on_from_the_state(tmp_path):
@@ -104,8 +121,39 @@ def test_a_long_gap_restarts_from_the_reading(tmp_path):
         stop(process)
 
 
-def test_an_unreadable_sensor_is_logged_and_skipped(tmp_path):
-    process = start(tmp_path, tmp_path / "missing")
+def test_a_sensor_that_goes_is_logged_and_the_value_kept(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    process = start(tmp_path, sensor)
+    wait_for(tmp_path / "temp")
+    sensor.unlink()
     time.sleep(0.5)
     stop(process)
     assert "cannot read" in process.stderr.read()
+    assert float((tmp_path / "temp").read_text()) == 50000
+
+
+def test_off_writes_no_compensation(tmp_path):
+    result = command(tmp_path, tmp_path / "sensor", "off")
+    assert result.returncode == 0
+    assert (tmp_path / "temp").read_text() == "54514\n"
+
+
+def test_check_wants_each_setting_and_a_readable_sensor(tmp_path):
+    sensor = tmp_path / "sensor"
+    assert "cannot read" in command(tmp_path, sensor, "check").stderr
+    sensor.write_text("50000\n")
+    assert command(tmp_path, sensor, "check").returncode == 0
+    unset = command(tmp_path, sensor, "check", OFF_VALUE="")
+    assert unset.returncode == 1
+    assert "set OFF_VALUE" in unset.stderr
+
+
+def test_settings_come_from_the_defaults_file(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    defaults = tmp_path / "defaults"
+    defaults.write_text("OFF_VALUE=12345\n")
+    result = command(tmp_path, sensor, "off", DEFAULTS=str(defaults), OFF_VALUE="")
+    assert result.returncode == 0
+    assert (tmp_path / "temp").read_text() == "12345\n"

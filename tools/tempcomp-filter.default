@@ -1,8 +1,15 @@
-# /etc/default/tempcomp-filter: settings for tempcomp-filter.sh (draws).
-SENSOR=/sys/class/hwmon/hwmon0/temp1_input
-# Seconds; 0 passes the reading through unfiltered.
+# Settings for tempcomp-filter.  It does not start until SENSOR and
+# OFF_VALUE are set.
+
+# The sensor chronyd's tempcomp line read before the filter.
+#SENSOR=/sys/class/hwmon/hwmon0/temp1_input
+
+# The tempcomp line's T0, when its k0 is 0: no compensation.  Written by
+# `tempcomp-filter off`, which removing the package runs.
+#OFF_VALUE=
+
+# Time constant, seconds; 0 passes the reading through unfiltered.
 TAU=300
+
+# Seconds between readings.
 PERIOD=5
-OUTPUT=/run/tempcomp-filter/temp
-# The tempcomp line's T0: its k0 is 0, so this is no compensation.
-OFF_VALUE=54514

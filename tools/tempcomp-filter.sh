@@ -7,23 +7,33 @@
 # line `tempcomp OUTPUT ...`.
 #
 # Usage:
-#   tempcomp-filter.sh run         filter until stopped (the systemd unit)
-#   tempcomp-filter.sh stop        write OFF_VALUE to OUTPUT
-#   tempcomp-filter.sh step F READING DT TAU
-#                                  print one filter step, for the tests
+#   tempcomp-filter run      filter until stopped (the systemd unit)
+#   tempcomp-filter check    exit 1 unless configured (the unit's condition)
+#   tempcomp-filter off      write OFF_VALUE to OUTPUT: no compensation
+#   tempcomp-filter step F READING DT TAU
+#                            print one filter step, for the tests
 #
-# Settings, from the environment (the unit reads /etc/default/tempcomp-filter):
+# Settings, from DEFAULTS (default /etc/default/tempcomp-filter) or the
+# environment:
 #   SENSOR     the sensor file, e.g. /sys/class/hwmon/hwmon0/temp1_input
-#   TAU        time constant, seconds
+#   TAU        time constant, seconds; 0 passes the reading through
 #   PERIOD     seconds between readings (default 5)
 #   OUTPUT     where chronyd reads it (default /run/tempcomp-filter/temp)
-#   OFF_VALUE  written on stop: the line's T0 when its k0 is 0, which is no
-#              compensation, as with tempcomp off
+#   OFF_VALUE  the tempcomp line's T0 when its k0 is 0: no compensation
 #   GAP_TAUS   restart from the reading after a gap of this many TAU
 #              (default 10)
+#
+# A stop, a restart or a crash leaves the last value, a sane temperature;
+# a restart carries on from the saved state.  Only `off` (the package runs it
+# on removal) turns compensation off.
 
 set -euo pipefail
 
+readonly DEFAULTS=${DEFAULTS:-/etc/default/tempcomp-filter}
+if [[ -r "${DEFAULTS}" ]]; then
+  # shellcheck source=/dev/null
+  source "${DEFAULTS}"
+fi
 readonly PERIOD=${PERIOD:-5}
 readonly OUTPUT=${OUTPUT:-/run/tempcomp-filter/temp}
 readonly GAP_TAUS=${GAP_TAUS:-10}
@@ -56,7 +66,7 @@ uptime_seconds() {
   echo "${up}"
 }
 
-# Prints "seconds since" the uptime $1, now being $2.
+# Prints the seconds from uptime $1 to uptime $2.
 elapsed() {
   awk -v taken="$1" -v now="$2" 'BEGIN { printf "%.3f\n", now - taken }'
 }
@@ -71,16 +81,27 @@ ping_watchdog() {
   fi
 }
 
+check() {
+  local name
+  for name in SENSOR TAU OFF_VALUE; do
+    if [[ -z "${!name:-}" ]]; then
+      err "set ${name} in ${DEFAULTS}"
+      return 1
+    fi
+  done
+  if [[ ! -r "${SENSOR}" ]]; then
+    err "cannot read ${SENSOR}"
+    return 1
+  fi
+}
+
 run() {
-  : "${SENSOR:?set SENSOR}" "${TAU:?set TAU}" "${OFF_VALUE:?set OFF_VALUE}"
+  check
   local f="" taken="" reading now gap
   if [[ -r "${STATE}" ]]; then
     read -r f taken < "${STATE}"
   fi
   gap=$(awk -v t="${TAU}" -v n="${GAP_TAUS}" 'BEGIN { print t * n }')
-  # A stop (TERM) turns compensation off.  A crash or the watchdog's ABRT
-  # leaves the last value, and a restart carries on from the state.
-  trap 'stop; exit 0' TERM
   while true; do
     now=$(uptime_seconds)
     if ! read -r reading < "${SENSOR}"; then
@@ -101,15 +122,16 @@ run() {
   done
 }
 
-stop() {
-  : "${OFF_VALUE:?set OFF_VALUE}"
+off() {
+  : "${OFF_VALUE:?set OFF_VALUE in ${DEFAULTS}}"
   write_atomically "${OFF_VALUE}" "${OUTPUT}"
 }
 
 main() {
   case "${1:-}" in
     run) run ;;
-    stop) stop ;;
+    check) check ;;
+    off) off ;;
     step)
       shift
       step "$@"

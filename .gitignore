@@ -1,3 +1,4 @@
 __pycache__/
 *.points
 .venv/
+/dist/

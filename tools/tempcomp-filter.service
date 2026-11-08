@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Phase 1's filter: /usr/local/sbin/tempcomp-filter.sh, settings in
-# /etc/default/tempcomp-filter.
+# Phase 1's filter; settings in /etc/default/tempcomp-filter.
 [Unit]
 Description=Filtered temperature for chronyd's tempcomp
 Before=chrony.service
@@ -11,8 +10,9 @@ Before=chrony.service
 # survives a lost one.
 Type=simple
 NotifyAccess=all
-EnvironmentFile=/etc/default/tempcomp-filter
-ExecStart=/usr/local/sbin/tempcomp-filter.sh run
+# Not configured yet: skipped, not failed.
+ExecCondition=/usr/sbin/tempcomp-filter check
+ExecStart=/usr/sbin/tempcomp-filter run
 Restart=always
 RestartSec=5
 WatchdogSec=60

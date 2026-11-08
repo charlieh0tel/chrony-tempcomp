@@ -451,9 +451,14 @@ compensation, is to confirm it.
   `WatchdogSec` with `sd_notify` pings.
 
 [`tools/tempcomp-filter.sh`](../tools/tempcomp-filter.sh) is this as a
-shell script, with [its unit](../tools/tempcomp-filter.service) and
-[draws's settings](../tools/tempcomp-filter.default), writing
-`/run/tempcomp-filter/temp`.  The unit is `Type=simple`: systemd 252 can
+shell script, with [its unit](../tools/tempcomp-filter.service), packaged
+by [`tools/build_deb.sh`](../tools/build_deb.sh) as `tempcomp-filter`,
+writing `/run/tempcomp-filter/temp`.  It does not start until
+`/etc/default/tempcomp-filter` names the sensor and the off value
+(`ExecCondition`).  A host's settings and its `tempcomp` line are whole
+files in [`tools/hosts`](../tools/hosts), the line in its own conf.d file,
+`tempcomp-filter.conf`, in place of `tempcomp.conf`; config files are
+replaced, never edited.  The unit is `Type=simple`: systemd 252 can
 lose a short-lived `systemd-notify`'s `READY=1`, failing the start, where a
 lost watchdog ping is covered by the next.  Debian's AppArmor profile for
 chronyd reads only sysfs sensors and `/run/chrony`; where AppArmor is on
@@ -476,9 +481,11 @@ chronyd keeps its last compensation when it cannot read the file: it
 logs "Could not read temperature" and carries on (`read_timeout`).  So
 removing the file does not turn compensation off.
 
-- On stop (SIGTERM), write T0: zero compensation, the same as tempcomp
-  off.  Not in `ExecStopPost`, which also runs between a crash and its
-  restart, when the last value should stand.
+- On removing the package, write T0 (`tempcomp-filter off`): zero
+  compensation, the same as tempcomp off.  Not on every stop: a restart
+  (an upgrade, a new `tau`) is a stop too, and chronyd reading zero for a
+  few seconds is worse than a value a few seconds old.  So a stop, like
+  a crash, leaves the last value, and a restart carries on from it.
 - A hang (alive but not writing) is caught by the systemd watchdog
   and restarted.
 - A crash leaves the last value, which is at worst a stale but sane

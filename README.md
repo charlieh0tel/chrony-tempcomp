@@ -8,7 +8,8 @@ temperature.
   `tempcomp` point table and `tools/install_points.sh` installs it
   (below).
 - [`tools/tempcomp-filter.sh`](tools/tempcomp-filter.sh), with its
-  systemd unit, filters the sensor for `tempcomp` (the design's phase 1).
+  systemd unit, filters the sensor for `tempcomp` (the design's phase 1);
+  `tools/build_deb.sh` packages it as `dist/tempcomp-filter_*_all.deb`.
 - [docs/design.md](docs/design.md): why chrony's `tempcomp` fed a raw
   sensor reading fails when the sensor is away from the crystal, or
   noisy and coarse; how the lag is found; a filter program to feed it

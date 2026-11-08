@@ -99,6 +99,7 @@ next.
    they share an oscillator is unmeasured.
 2. Then revise the design's lags and the chrony proposal's guidance to
    what that shows.
-3. Phase 1's filter is written (`tools/tempcomp-filter.sh`, its unit and
-   draws's settings at a 5 min `tau`), not installed.  Then on one host, for before-and-after
+3. Phase 1's filter is written and packaged (`tools/build_deb.sh`), with
+   draws's settings and `tempcomp` line at a 5 min `tau` in
+   `tools/hosts/draws`, not installed.  Then on one host, for before-and-after
    offset and holdover numbers, and the chrony-dev question.
