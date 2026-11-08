@@ -75,6 +75,14 @@ on the others too, with and without the room's temperature, on all days
 and on those with compensation off and on apart: frequency less
 compensation holds the raw reading, so those with it on cannot give a lag.
 
+`raw_minutes.py` puts recordings, one or several files of a host, in
+`fetch.py`'s one-minute form with the raw frequency and no compensation,
+leaving out `--exclude` spans (no fix; a load step and its settling), so
+`room_days.py` and `smoothing.py` judge the crystal free of chronyd:
+
+    python3 raw_minutes.py pps-*.csv --sensor /sys/class/hwmon/hwmon0/temp1_input \
+        --exclude FROM:TO ... -o draws-raw.npz
+
 `smoothing.py` asks what a fitted lag is, on a host's one-minute
 buckets: a causal lag against the same smoothing with no delay and a
 pure delay; simulated crystals of known lag as a control; and a second,
