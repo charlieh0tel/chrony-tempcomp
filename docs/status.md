@@ -146,6 +146,15 @@ next.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
+   chronyd itself steadied about tenfold on each host when it began
+   reading the filter (`tracking.log`, 2.5 h before and after): apu-0's
+   frequency step SD 8.1 to 0.7 ppb, skew 17 to 2 ppb, offset RMS 127 to
+   10 ns; draws's 25.8 to 1.8 ppb, 30 to 3 ppb, 5.6 us to 188 ns.  draws's
+   0.1.3 restart, filtered on both sides, changed nothing (1.9 to 1.7 ppb).
+   Each jitter of an unfiltered reading is a frequency step chronyd
+   chases (0.013 ppm per 0.1 degree on apu-0); the replay, scoring the fit
+   to the crystal each minute, does not see that.  Against compensation
+   off, which adds no such noise, test 2 and holdover still decide.
    0.1.3 on both hosts (draws's chrony restarted 01:17:20 UTC on
    2026-11-09, `TAU` 300 that day): output in `/run/chrony`, run as
    `_chrony` after chrony; settings from a per-host package in
