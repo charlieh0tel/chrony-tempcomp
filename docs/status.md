@@ -153,7 +153,10 @@ next.
    0.1.3 restart, filtered on both sides, changed nothing (1.9 to 1.7 ppb).
    Each jitter of an unfiltered reading is a frequency step chronyd
    chases (0.013 ppm per 0.1 degree on apu-0); the replay, scoring the fit
-   to the crystal each minute, does not see that.  Against compensation
+   to the crystal each minute, does not see that; its step column does:
+   the compensation's RMS change between chronyd's readings, 93 ppb
+   unfiltered against 2.5 at 300 s on draws, 34 against 1.5 at 180 s on
+   apu-0.  Against compensation
    off, which adds no such noise, test 2 and holdover still decide.
    0.1.3 on both hosts (draws's chrony restarted 01:17:20 UTC on
    2026-11-09, `TAU` 300 that day): output in `/run/chrony`, run as

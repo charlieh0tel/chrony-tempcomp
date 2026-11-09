@@ -9,6 +9,7 @@ from filter_gain import (
     holdover_errors,
     minute_compensation,
     sample,
+    steps,
 )
 from room_days import STEP
 
@@ -94,3 +95,27 @@ def test_the_right_time_constant_beats_the_unfiltered_sensor():
         return np.std(residual)
 
     assert error(300.0) < 0.5 * error(0.0)
+
+
+def test_steps_are_the_changes_between_chronyds_readings():
+    times = np.arange(0.0, 120.0)
+    readings = 50000.0 + np.where(times < 60, 0.0, 1000.0)
+    grid = np.array([0.0, 60.0])
+    change = steps(times, readings, LINE, 0.0, grid, np.array([True, True]))
+    # Readings at 0, 15, ..., 105 s: one step of 0.1 ppm, at 60 s.
+    assert sorted(change) == pytest.approx([0.0] * 6 + [0.1])
+    only_first = steps(times, readings, LINE, 0.0, grid, np.array([True, False]))
+    assert len(only_first) == 3
+
+
+def test_the_filter_shrinks_the_steps_of_a_jittery_sensor():
+    rng = np.random.default_rng(2)
+    times = np.arange(0.0, 3 * 3600.0)
+    readings = 55000 + np.round(rng.normal(0, 100, len(times)) / 100) * 100
+    grid = np.arange(0.0, times[-1], STEP)
+    good = np.ones(len(grid), dtype=bool)
+
+    def noise(tau):
+        return np.std(steps(times, readings, LINE, tau, grid, good))
+
+    assert noise(180.0) < 0.1 * noise(0.0)

@@ -86,7 +86,9 @@ leaving out `--exclude` spans (no fix; a load step and its settling), so
 `filter_gain.py` replays recordings through the `tempcomp` line, the
 sensor read as chronyd reads it and through the filter at each time
 constant, and scores each against the crystal's own frequency: RMS, day
-by day, and the time error over 1, 4 and 24 h of holdover.
+by day, and the time error over 1, 4 and 24 h of holdover.  And the noise
+each pushes into chronyd: the RMS change of the compensation from one of
+chronyd's readings to the next, a frequency step its loop chases.
 
 `smoothing.py` asks what a fitted lag is, on a host's one-minute
 buckets: a causal lag against the same smoothing with no delay and a

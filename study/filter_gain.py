@@ -20,7 +20,10 @@ A perfect line holds the frequency plus its compensation constant
 median, is the error.  Each scheme is scored on the same minutes: its RMS,
 day by day, and the time error the error would build in holdover, from
 each hour's start, with chronyd's frequency at the loss taken as the mean
-error of the 15 minutes before it.
+error of the 15 minutes before it.  And the noise each pushes into chronyd:
+the RMS of the compensation's change from one of chronyd's readings to the
+next, a frequency step its loop then chases, which the per-minute fit does
+not see.
 """
 
 from __future__ import annotations
@@ -47,6 +50,7 @@ HOLDOVER_HOURS = (1, 4, 24)
 ESTIMATE_MINUTES = 15
 COVERAGE = 0.9
 SECONDS_PER_HOUR = 3600
+PPB_PER_PPM = 1000
 
 
 def compensation(line: Sequence[float], value: np.ndarray) -> np.ndarray:
@@ -89,6 +93,22 @@ def filtered(
     return ticks, output
 
 
+def applied(
+    times: np.ndarray,
+    readings: np.ndarray,
+    line: Sequence[float],
+    tau: float,
+    interval: float = INTERVAL,
+) -> tuple[np.ndarray, np.ndarray]:
+    """(chronyd's reading times, the compensation it applies at each),
+    reading the sensor (tau 0) or the filter's output every `interval` s."""
+    if tau > 0:
+        times, readings = filtered(times, readings, tau)
+    known = ~np.isnan(readings)
+    ticks = ticks_over(times, interval)
+    return ticks, compensation(line, sample(times[known], readings[known], ticks))
+
+
 def minute_compensation(
     times: np.ndarray,
     readings: np.ndarray,
@@ -97,19 +117,32 @@ def minute_compensation(
     grid: np.ndarray,
     interval: float = INTERVAL,
 ) -> np.ndarray:
-    """The mean compensation chronyd applies in each grid minute, reading
-    the sensor (tau 0) or the filter's output every `interval` s."""
-    if tau > 0:
-        times, readings = filtered(times, readings, tau)
-    known = ~np.isnan(readings)
-    ticks = ticks_over(times, interval)
-    applied = compensation(line, sample(times[known], readings[known], ticks))
+    """The mean compensation chronyd applies in each grid minute."""
+    ticks, applied_then = applied(times, readings, line, tau, interval)
     minute = ((ticks - grid[0]) // STEP).astype(int)
-    inside = (minute >= 0) & (minute < len(grid)) & ~np.isnan(applied)
-    total = np.bincount(minute[inside], applied[inside], len(grid))
+    inside = (minute >= 0) & (minute < len(grid)) & ~np.isnan(applied_then)
+    total = np.bincount(minute[inside], applied_then[inside], len(grid))
     count = np.bincount(minute[inside], minlength=len(grid))
     with np.errstate(invalid="ignore"):
         return np.where(count > 0, total / np.maximum(count, 1), np.nan)
+
+
+def steps(
+    times: np.ndarray,
+    readings: np.ndarray,
+    line: Sequence[float],
+    tau: float,
+    grid: np.ndarray,
+    good: np.ndarray,
+) -> np.ndarray:
+    """The compensation's change, ppm, between chronyd's successive readings
+    in the grid's good minutes."""
+    ticks, applied_then = applied(times, readings, line, tau)
+    change = np.diff(applied_then)
+    minute = ((ticks[1:] - grid[0]) // STEP).astype(int)
+    inside = (minute >= 0) & (minute < len(grid))
+    inside[inside] &= good[minute[inside]]
+    return change[inside & ~np.isnan(change)]
 
 
 def holdover_errors(error: np.ndarray, hours: int) -> np.ndarray:
@@ -158,6 +191,7 @@ def report(
         "  tau s  RMS ppm  by day ppm"
         + " " * max(0, 7 * len(days) - 10)
         + "".join(f"  {h:2d} h us" for h in HOLDOVER_HOURS)
+        + "  step ppb"
     )
     for tau, comp in comps.items():
         error = np.where(good, frequency + comp, np.nan)
@@ -167,7 +201,16 @@ def report(
         for hours in HOLDOVER_HOURS:
             held = holdover_errors(error, hours)
             holdover += f"  {rms(held):7.1f}" if len(held) else "        -"
-        print(f"  {tau:5.0f}   {rms(error[good]):.4f}   {by_day}{holdover}")
+        changes = np.concatenate(
+            [
+                steps(times, readings, line, tau, grid, good)
+                for times, readings in pieces
+            ]
+        )
+        noise = rms(changes) * PPB_PER_PPM
+        print(
+            f"  {tau:5.0f}   {rms(error[good]):.4f}   {by_day}{holdover}  {noise:8.2f}"
+        )
 
 
 def read_readings(path: str, sensor: str) -> tuple[np.ndarray, np.ndarray]:
