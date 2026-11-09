@@ -159,7 +159,9 @@ next.
       `ALTERNATE_TAU=0` alternated with unfiltered; 0.1.5's
       `ALTERNATE_TAU=off`, in `tempcomp-filter-draws`, writes `OFF_VALUE`
       on odd UTC days since the epoch (the first 2026-11-10), filtering on
-      underneath, logged at each switch.  Each switch is a step in the
+      underneath, logged at each switch: on draws from 21:22 UTC on
+      2026-11-09, and in `tempcomp-filter-apu-0` 0.1.5 for apu-0 at
+      `TAU` 180, the same days.  Each switch is a step in the
       compensation (as much as the line gives at the day's temperature),
       which chronyd must absorb; judge from an hour after it.
    3. Holdover: the reference cut for a few hours, filter on and off, the
@@ -182,7 +184,7 @@ next.
    `_chrony` after chrony; settings from a per-host package in
    `/etc/tempcomp-filter.d`, `/etc/default/tempcomp-filter` shipped
    commented out; `ALTERNATE_TAU`; `TAU` 0 no longer logs a gap restart
-   each reading.  0.1.5 (built, not installed) adds `ALTERNATE_TAU=off`
+   each reading.  0.1.5 (on draws from 21:22 UTC on 2026-11-09; built for apu-0) adds `ALTERNATE_TAU=off`
    and `ALTERNATE_DAYS`, and fixes a host package's first install (0.1.4,
    never installed): it left the filter stopped until chrony restarted.  The script is past the limit of shell (floats and stats
    through `awk`, several processes a reading): its next change moves it

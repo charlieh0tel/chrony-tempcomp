@@ -11,6 +11,9 @@ OFF_VALUE=63223
 # from apu-0's raw frequency of 2026-11-06 to 08 (data/filter-gain-apu-0.txt).
 TAU=180
 
+# Test 2 (docs/status.md): no compensation on odd UTC days since the epoch.
+ALTERNATE_TAU=off
+
 # Seconds between readings.
 PERIOD=5
 
