@@ -1,4 +1,4 @@
-# /etc/default/tempcomp-filter on apu-0.
+# /etc/tempcomp-filter.d/host.conf on apu-0, from tempcomp-filter-apu-0.
 
 # The sensor chronyd's tempcomp line read before the filter.
 SENSOR=/sys/devices/virtual/thermal/thermal_zone0/hwmon0/temp1_input

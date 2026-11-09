@@ -1,5 +1,6 @@
-# Settings for tempcomp-filter.  It does not start until SENSOR and
-# OFF_VALUE are set.
+# Settings for tempcomp-filter.  A host's package sets them in
+# /etc/tempcomp-filter.d/, read after this file.  It does not start until
+# SENSOR and OFF_VALUE are set.
 
 # The sensor chronyd's tempcomp line read before the filter.
 #SENSOR=/sys/class/hwmon/hwmon0/temp1_input
@@ -9,10 +10,13 @@
 #OFF_VALUE=
 
 # Time constant, seconds; 0 passes the reading through unfiltered.
-TAU=300
+#TAU=300
+
+# If set, the time constant on odd UTC days since the epoch, to compare two.
+#ALTERNATE_TAU=0
 
 # Seconds between readings.
-PERIOD=5
+#PERIOD=5
 
 # Seconds between summaries in the log.
-STATS_INTERVAL=900
+#STATS_INTERVAL=900

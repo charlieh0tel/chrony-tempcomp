@@ -447,25 +447,31 @@ compensation, is to confirm it.
   restart mid-day does not reset it to the raw reading.
 - Settings: sensor, `tau`, `period`, output path; flags, or
   `/etc/default/chrony-tempcomp`.
-- systemd unit: `Restart=always`, ordered before `chrony.service`,
-  `WatchdogSec` with `sd_notify` pings.
+- systemd unit: `Restart=always`, ordered after `chrony.service` and
+  part of it, `WatchdogSec` with `sd_notify` pings.
 
 [`tools/tempcomp-filter.sh`](../tools/tempcomp-filter.sh) is this as a
 shell script, with [its unit](../tools/tempcomp-filter.service), packaged
-by [`tools/build_deb.sh`](../tools/build_deb.sh) as `tempcomp-filter`,
-writing `/run/tempcomp-filter/temp`.  It runs as root with no capabilities, not
-`DynamicUser`, which puts the runtime directory under `/run/private`
-(0700), out of chronyd's reach.  It does not start until
-`/etc/default/tempcomp-filter` names the sensor and the off value
-(`ExecCondition`).  A host's settings and its `tempcomp` line are whole
-files in [`tools/hosts`](../tools/hosts), the line in its own conf.d file,
-`tempcomp-filter.conf`, in place of `tempcomp.conf`; config files are
-replaced, never edited.  The unit is `Type=simple`: systemd 252 can
-lose a short-lived `systemd-notify`'s `READY=1`, failing the start, where a
-lost watchdog ping is covered by the next.  Debian's AppArmor profile for
-chronyd reads only sysfs sensors and `/run/chrony`; where AppArmor is on
-(apu-0, not draws), `/run/tempcomp-filter/temp r,` goes in
-`/etc/apparmor.d/local/usr.sbin.chronyd` (`tools/hosts/apu-0`).
+by [`tools/build_deb.sh`](../tools/build_deb.sh) as `tempcomp-filter`.
+It writes `/run/chrony/tempcomp-filter`: Debian's AppArmor profile for
+chronyd reads only sysfs sensors and chrony's own runtime directory, and
+its only extension point, `local/`, is the admin's, not a package's.  So
+it runs as `_chrony`, that directory's owner (0700), with no capabilities,
+after chrony, which makes the directory, and part of it, as the directory
+goes when chrony stops; a failed write is logged and retried.  chronyd
+reads its file once at start, before the filter, so at boot it logs one
+"Could not read temperature" and takes the value 15 s later.  It does not
+start until the sensor and the off value are set (`ExecCondition`):
+`/etc/default/tempcomp-filter`, shipped commented out, then
+`/etc/tempcomp-filter.d/*.conf`.  A host's settings and its `tempcomp`
+line are a package of their own, `tempcomp-filter-HOST`, from
+[`tools/hosts`](../tools/hosts): the line in its own conf.d file,
+`tempcomp-filter.conf`, in place of `tempcomp.conf`.  Every change to a
+host comes in a package; config files are replaced, never edited.  The
+unit is `Type=simple`: systemd 252 can lose a short-lived
+`systemd-notify`'s `READY=1`, failing the start, where a lost watchdog
+ping is covered by the next.  `ALTERNATE_TAU` sets another time constant
+for odd UTC days, to compare two on a host (status, test 2).
 
 A Kalman filter with this model (the crystal's temperature as the
 state, a first-order lag as its process, the sensor's jitter as the

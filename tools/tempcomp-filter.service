@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Phase 1's filter; settings in /etc/default/tempcomp-filter.
+# Phase 1's filter; settings in /etc/default/tempcomp-filter and
+# /etc/tempcomp-filter.d/*.conf.
 [Unit]
 Description=Filtered temperature for chronyd's tempcomp
-Before=chrony.service
+# It writes into chrony's runtime directory, there only while chrony runs.
+After=chrony.service
+PartOf=chrony.service
 
 [Service]
 # Simple, not notify: systemd may lose a short-lived systemd-notify's
@@ -16,17 +19,20 @@ ExecStart=/usr/sbin/tempcomp-filter run
 Restart=always
 RestartSec=5
 WatchdogSec=60
-# Root without capabilities, not DynamicUser: that puts the runtime
-# directory under /run/private, 0700, where chronyd cannot read it.
+# chrony's user owns its runtime directory, 0700.
+User=_chrony
+Group=_chrony
 CapabilityBoundingSet=
+# The state, kept across restarts.
 RuntimeDirectory=tempcomp-filter
-RuntimeDirectoryMode=0755
-# Keep the state, and the last value chronyd reads, across restarts.
+RuntimeDirectoryMode=0700
 RuntimeDirectoryPreserve=yes
 ProtectSystem=strict
+# "-": not an error while chrony is stopped.
+ReadWritePaths=-/run/chrony
 ProtectHome=yes
 PrivateTmp=yes
 NoNewPrivileges=yes
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=chrony.service

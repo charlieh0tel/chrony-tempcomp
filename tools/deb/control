@@ -2,11 +2,12 @@ Package: tempcomp-filter
 Version: @VERSION@
 Architecture: all
 Maintainer: Christopher Hoover <ch@murgatroid.com>
-Depends: bash, systemd, mawk | gawk
+Depends: bash (>= 5.0), chrony, systemd, mawk | gawk
 Section: admin
 Priority: optional
 Homepage: https://github.com/charlieh0tel/chrony-tempcomp
 Description: filtered temperature for chronyd's tempcomp
  Reads a temperature sensor and writes it through a first-order lag to
- /run/tempcomp-filter/temp, for a chrony.conf line that names that file.
- Set SENSOR and OFF_VALUE in /etc/default/tempcomp-filter to start it.
+ /run/chrony/tempcomp-filter, for a chrony.conf line that names that file.
+ Set SENSOR and OFF_VALUE in /etc/default/tempcomp-filter, or a host's
+ package in /etc/tempcomp-filter.d, to start it.

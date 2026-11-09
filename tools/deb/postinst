@@ -4,7 +4,8 @@ set -e
 
 if [ "$1" = configure ] && [ -d /run/systemd/system ]; then
   systemctl daemon-reload
-  systemctl enable tempcomp-filter.service
+  # reenable: up to 0.1.2 it was wanted by multi-user.target.
+  systemctl reenable tempcomp-filter.service
   # Skipped by its condition until configured.
   systemctl restart tempcomp-filter.service
 fi

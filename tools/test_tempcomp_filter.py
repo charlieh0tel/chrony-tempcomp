@@ -51,10 +51,12 @@ def settings(tmp_path, sensor, **changes):
     return {
         "PATH": os.environ["PATH"],
         "DEFAULTS": str(tmp_path / "none"),
+        "HOST_SETTINGS": str(tmp_path / "none.d"),
         "SENSOR": str(sensor),
         "TAU": "300",
         "PERIOD": "0.1",
         "OUTPUT": str(tmp_path / "temp"),
+        "STATE": str(tmp_path / "temp.state"),
         "OFF_VALUE": "54514",
     } | changes
 
@@ -158,6 +160,75 @@ def test_settings_come_from_the_defaults_file(tmp_path):
     result = command(tmp_path, sensor, "off", DEFAULTS=str(defaults), OFF_VALUE="")
     assert result.returncode == 0
     assert (tmp_path / "temp").read_text() == "12345\n"
+
+
+def test_host_settings_come_after_the_defaults(tmp_path):
+    sensor = tmp_path / "sensor"
+    defaults = tmp_path / "defaults"
+    defaults.write_text("OFF_VALUE=12345\n")
+    host = tmp_path / "host.d"
+    host.mkdir()
+    (host / "host.conf").write_text("OFF_VALUE=23456\n")
+    result = command(
+        tmp_path,
+        sensor,
+        "off",
+        DEFAULTS=str(defaults),
+        HOST_SETTINGS=str(host),
+        OFF_VALUE="",
+    )
+    assert result.returncode == 0
+    assert (tmp_path / "temp").read_text() == "23456\n"
+
+
+def tau_at(tmp_path, unix_seconds, **changes):
+    result = subprocess.run(
+        [SCRIPT, "tau", str(unix_seconds)],
+        check=True,
+        env=settings(tmp_path, tmp_path / "sensor", **changes),
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def test_an_alternate_time_constant_holds_on_odd_utc_days(tmp_path):
+    day = 86400
+    assert tau_at(tmp_path, 20000 * day + 5) == "300"
+    assert tau_at(tmp_path, 20001 * day - 1, ALTERNATE_TAU="0") == "300"
+    assert tau_at(tmp_path, 20001 * day, ALTERNATE_TAU="0") == "0"
+    assert tau_at(tmp_path, 20002 * day, ALTERNATE_TAU="0") == "300"
+
+
+def test_no_time_constant_passes_readings_without_logging_gaps(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    process = start(tmp_path, sensor, TAU="0")
+    wait_for(tmp_path / "temp")
+    sensor.write_text("60000\n")
+    assert (
+        float(wait_for(tmp_path / "temp", lambda text: float(text) != 50000)) == 60000
+    )
+    stop(process)
+    assert "restarting" not in process.stdout.read()
+
+
+def test_an_output_that_goes_is_logged_once_and_written_again(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    directory = tmp_path / "chrony"
+    directory.mkdir()
+    output = directory / "temp"
+    process = start(tmp_path, sensor, OUTPUT=str(output))
+    wait_for(output)
+    output.unlink()
+    directory.rmdir()
+    time.sleep(0.5)
+    directory.mkdir()
+    wait_for(output)
+    stop(process)
+    assert process.stderr.read().count("cannot write") == 1
+    assert f"{output} written again after " in process.stdout.read()
 
 
 def test_the_log_has_the_start_and_a_summary_each_interval(tmp_path):

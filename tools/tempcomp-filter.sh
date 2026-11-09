@@ -12,20 +12,28 @@
 #   tempcomp-filter off      write OFF_VALUE to OUTPUT: no compensation
 #   tempcomp-filter step F READING DT TAU
 #                            print one filter step, for the tests
+#   tempcomp-filter tau [UNIX_SECONDS]
+#                            print the time constant in force then (now)
 #
-# Settings, from DEFAULTS (default /etc/default/tempcomp-filter) or the
-# environment:
+# Settings, from DEFAULTS (default /etc/default/tempcomp-filter), then each
+# HOST_SETTINGS/*.conf (default /etc/tempcomp-filter.d, where a host's
+# package puts them), or the environment:
 #   SENSOR     the sensor file, e.g. /sys/class/hwmon/hwmon0/temp1_input
 #   TAU        time constant, seconds; 0 passes the reading through
+#              (default 300)
+#   ALTERNATE_TAU  if set, the time constant on odd UTC days since the
+#              epoch, for comparing two (docs/status.md, test 2)
 #   PERIOD     seconds between readings (default 5)
-#   OUTPUT     where chronyd reads it (default /run/tempcomp-filter/temp)
+#   OUTPUT     where chronyd reads it (default /run/chrony/tempcomp-filter,
+#              which Debian's AppArmor profile for chronyd lets it read)
+#   STATE      the filter's state (default /run/tempcomp-filter/state)
 #   OFF_VALUE  the tempcomp line's T0 when its k0 is 0: no compensation
 #   GAP_TAUS   restart from the reading after a gap of this many TAU
 #              (default 10)
 #   STATS_INTERVAL  seconds between summaries in the log (default 900)
 #
-# Logs its start, a restart from the reading after a gap, a sensor's
-# failure and recovery, and every STATS_INTERVAL the readings taken and
+# Logs its start, a change of time constant, a restart from the reading
+# after a gap, a sensor's or the output's failure and recovery, and every STATS_INTERVAL the readings taken and
 # failed, the sensor's range and last reading, and the filtered value.
 #
 # A stop, a restart or a crash leaves the last value, a sane temperature;
@@ -35,16 +43,21 @@
 set -euo pipefail
 
 readonly DEFAULTS=${DEFAULTS:-/etc/default/tempcomp-filter}
-if [[ -r "${DEFAULTS}" ]]; then
-  # shellcheck source=/dev/null
-  source "${DEFAULTS}"
-fi
+readonly HOST_SETTINGS=${HOST_SETTINGS:-/etc/tempcomp-filter.d}
+for settings in "${DEFAULTS}" "${HOST_SETTINGS}"/*.conf; do
+  if [[ -r "${settings}" ]]; then
+    # shellcheck source=/dev/null
+    source "${settings}"
+  fi
+done
+readonly TAU=${TAU:-300}
 readonly PERIOD=${PERIOD:-5}
-readonly OUTPUT=${OUTPUT:-/run/tempcomp-filter/temp}
+readonly OUTPUT=${OUTPUT:-/run/chrony/tempcomp-filter}
 readonly GAP_TAUS=${GAP_TAUS:-10}
 readonly STATS_INTERVAL=${STATS_INTERVAL:-900}
 # The filter's value and the uptime it was taken at, kept across restarts.
-readonly STATE="${OUTPUT}.state"
+readonly STATE=${STATE:-/run/tempcomp-filter/state}
+readonly SECONDS_PER_DAY=86400
 
 log() {
   echo "tempcomp-filter: $*"
@@ -66,8 +79,16 @@ step() {
 # Writes $1 to $2 so a reader sees the old file or the new, never part.
 write_atomically() {
   local value=$1 path=$2
-  printf '%s\n' "${value}" > "${path}.tmp"
-  mv -f "${path}.tmp" "${path}"
+  printf '%s\n' "${value}" > "${path}.tmp" && mv -f "${path}.tmp" "${path}"
+}
+
+# Prints the time constant in force at Unix time $1.
+tau_at() {
+  if [[ -n "${ALTERNATE_TAU:-}" ]] && (($1 / SECONDS_PER_DAY % 2 == 1)); then
+    echo "${ALTERNATE_TAU}"
+  else
+    echo "${TAU}"
+  fi
 }
 
 uptime_seconds() {
@@ -93,7 +114,7 @@ ping_watchdog() {
 
 check() {
   local name
-  for name in SENSOR TAU OFF_VALUE; do
+  for name in SENSOR OFF_VALUE; do
     if [[ -z "${!name:-}" ]]; then
       err "set ${name} in ${DEFAULTS}"
       return 1
@@ -107,21 +128,27 @@ check() {
 
 run() {
   check
-  local f="" taken="" reading now gap since failing=""
+  local f="" taken="" reading now gap since failing="" unwritten=""
+  local tau
   # Since the last summary: readings, failures, and the sensor's range.
   local count=0 failed=0 low="" high="" last="" summarized
   if [[ -r "${STATE}" ]]; then
     read -r f taken < "${STATE}"
   fi
-  gap=$(awk -v t="${TAU}" -v n="${GAP_TAUS}" 'BEGIN { print t * n }')
+  tau=$(tau_at "${EPOCHSECONDS}")
   summarized=$(uptime_seconds)
   if [[ -n "${f}" ]]; then
-    log "start: ${SENSOR}, tau ${TAU} s; carrying on from ${f}"
+    log "start: ${SENSOR}, tau ${tau} s; carrying on from ${f}"
   else
-    log "start: ${SENSOR}, tau ${TAU} s; from the first reading"
+    log "start: ${SENSOR}, tau ${tau} s; from the first reading"
   fi
   while true; do
     now=$(uptime_seconds)
+    if [[ $(tau_at "${EPOCHSECONDS}") != "${tau}" ]]; then
+      tau=$(tau_at "${EPOCHSECONDS}")
+      log "tau ${tau} s from today (UTC)"
+    fi
+    gap=$(awk -v t="${tau}" -v n="${GAP_TAUS}" 'BEGIN { print t * n }')
     if ! read -r reading < "${SENSOR}"; then
       failed=$((failed + 1))
       if [[ -z "${failing}" ]]; then
@@ -145,15 +172,24 @@ run() {
         f=$(step 0 "${reading}" 0 0)
       else
         since=$(elapsed "${taken}" "${now}")
-        if is_longer "${since}" "${gap}"; then
+        if is_longer "${tau}" 0 && is_longer "${since}" "${gap}"; then
           log "restarting from the reading, ${reading}, after ${since} s"
           f=$(step 0 "${reading}" 0 0)
         else
-          f=$(step "${f}" "${reading}" "${since}" "${TAU}")
+          f=$(step "${f}" "${reading}" "${since}" "${tau}")
         fi
       fi
       taken=${now}
-      write_atomically "${f}" "${OUTPUT}"
+      # chrony's runtime directory goes while chrony is stopped.
+      if write_atomically "${f}" "${OUTPUT}" 2> /dev/null; then
+        if [[ -n "${unwritten}" ]]; then
+          log "${OUTPUT} written again after $(elapsed "${unwritten}" "${now}") s"
+          unwritten=""
+        fi
+      elif [[ -z "${unwritten}" ]]; then
+        err "cannot write ${OUTPUT}; retrying"
+        unwritten=${now}
+      fi
       write_atomically "${f} ${taken}" "${STATE}"
     fi
     since=$(elapsed "${summarized}" "${now}")
@@ -182,8 +218,9 @@ main() {
       shift
       step "$@"
       ;;
+    tau) tau_at "${2:-${EPOCHSECONDS}}" ;;
     *)
-      sed -n '9,14s/^# //p' "$0" >&2
+      sed -n '9,16s/^# //p' "$0" >&2
       exit 2
       ;;
   esac

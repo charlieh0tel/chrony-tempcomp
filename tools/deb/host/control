@@ -1,0 +1,13 @@
+Package: tempcomp-filter-@HOST@
+Version: @VERSION@
+Architecture: all
+Maintainer: Christopher Hoover <ch@murgatroid.com>
+Depends: tempcomp-filter (>= @VERSION@)
+Section: admin
+Priority: optional
+Homepage: https://github.com/charlieh0tel/chrony-tempcomp
+Description: tempcomp-filter's settings and chrony's tempcomp line for @HOST@
+ The filter's sensor and time constant, in /etc/tempcomp-filter.d, and
+ chronyd's tempcomp line on the filter's output, in
+ /etc/chrony/conf.d/tempcomp-filter.conf.  chronyd takes the line when
+ restarted.

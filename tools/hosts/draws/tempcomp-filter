@@ -1,4 +1,4 @@
-# /etc/default/tempcomp-filter on draws.
+# /etc/tempcomp-filter.d/host.conf on draws, from tempcomp-filter-draws.
 
 # The sensor chronyd's tempcomp line read before the filter.
 SENSOR=/sys/class/hwmon/hwmon0/temp1_input
@@ -10,6 +10,9 @@ OFF_VALUE=54514
 # Time constant, seconds; 0 passes the reading through unfiltered.  5 min
 # from draws's quiet raw frequency of 2026-11-06 to 08 (docs/status.md).
 TAU=300
+
+# Test 2 (docs/status.md): unfiltered on odd UTC days since the epoch.
+ALTERNATE_TAU=0
 
 # Seconds between readings.
 PERIOD=5

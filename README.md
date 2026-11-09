@@ -9,7 +9,9 @@ temperature.
   (below).
 - [`tools/tempcomp-filter.sh`](tools/tempcomp-filter.sh), with its
   systemd unit, filters the sensor for `tempcomp` (the design's phase 1);
-  `tools/build_deb.sh` packages it as `dist/tempcomp-filter_*_all.deb`.
+  `tools/build_deb.sh` packages it as `dist/tempcomp-filter_*_all.deb`,
+  and with `--host HOST` a host's settings and `tempcomp` line from
+  `tools/hosts/HOST` as `tempcomp-filter-HOST`.
 - [docs/design.md](docs/design.md): why chrony's `tempcomp` fed a raw
   sensor reading fails when the sensor is away from the crystal, or
   noisy and coarse; how the lag is found; a filter program to feed it

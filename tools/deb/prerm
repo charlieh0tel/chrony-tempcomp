@@ -5,7 +5,7 @@ set -e
 if [ "$1" = remove ] && [ -d /run/systemd/system ]; then
   systemctl disable --now tempcomp-filter.service
   # chronyd keeps the last value when its file goes: turn it off instead.
-  if [ -d /run/tempcomp-filter ]; then
+  if [ -d /run/chrony ]; then
     /usr/sbin/tempcomp-filter off || true
   fi
 fi

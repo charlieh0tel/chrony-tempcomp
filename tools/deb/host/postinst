@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -e
+
+if [ "$1" = configure ] && [ -d /run/systemd/system ]; then
+  systemctl try-restart tempcomp-filter.service
+fi
