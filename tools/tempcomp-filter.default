@@ -12,8 +12,12 @@
 # Time constant, seconds; 0 passes the reading through unfiltered.
 #TAU=300
 
-# If set, the time constant on odd UTC days since the epoch, to compare two.
-#ALTERNATE_TAU=0
+# If set, the time constant on ALTERNATE_DAYS, to compare two; `off` writes
+# OFF_VALUE those days, filtering on at TAU.
+#ALTERNATE_TAU=off
+
+# `odd` or `even` UTC days since the epoch.
+#ALTERNATE_DAYS=odd
 
 # Seconds between readings.
 #PERIOD=5

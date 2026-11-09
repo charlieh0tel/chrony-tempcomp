@@ -11,8 +11,8 @@ OFF_VALUE=54514
 # from draws's quiet raw frequency of 2026-11-06 to 08 (docs/status.md).
 TAU=300
 
-# Test 2 (docs/status.md): unfiltered on odd UTC days since the epoch.
-ALTERNATE_TAU=0
+# Test 2 (docs/status.md): no compensation on odd UTC days since the epoch.
+ALTERNATE_TAU=off
 
 # Seconds between readings.
 PERIOD=5

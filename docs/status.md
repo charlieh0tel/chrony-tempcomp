@@ -137,12 +137,18 @@ next.
       and two speeds without touching the host.
    2. On the host: chronyd's frequency, less the compensation, wanders
       less when the compensation fits.  Its spread over 15 min to 4 h
-      (`tracking.log`, `tempcomp.log`), `TAU` 300 and 0 (pass-through)
-      alternated every day or two for about a week, so weather and load
-      even out.  A script's cron job on draws ran `TAU` 0 from 23:48 to
-      23:55 UTC on 2026-11-08 and was removed, as changes to a host go in
-      packages.  0.1.3's `ALTERNATE_TAU=0`, in `tempcomp-filter-draws`,
-      does it: 0 on odd UTC days since the epoch, logged at each switch.
+      (`tracking.log`, `tempcomp.log`), the filter at `TAU` 300 and
+      compensation off alternated daily for about a week, so weather and
+      load even out.  Filtered against unfiltered is largely answered (the
+      tenfold below), so off is the comparison that matters.  A script's
+      cron job on draws ran `TAU` 0 from 23:48 to 23:55 UTC on 2026-11-08
+      and was removed, as changes to a host go in packages.  0.1.3's
+      `ALTERNATE_TAU=0` alternated with unfiltered; 0.1.5's
+      `ALTERNATE_TAU=off`, in `tempcomp-filter-draws`, writes `OFF_VALUE`
+      on odd UTC days since the epoch (the first 2026-11-10), filtering on
+      underneath, logged at each switch.  Each switch is a step in the
+      compensation (as much as the line gives at the day's temperature),
+      which chronyd must absorb; judge from an hour after it.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
@@ -163,8 +169,9 @@ next.
    `_chrony` after chrony; settings from a per-host package in
    `/etc/tempcomp-filter.d`, `/etc/default/tempcomp-filter` shipped
    commented out; `ALTERNATE_TAU`; `TAU` 0 no longer logs a gap restart
-   each reading.  0.1.4 (built, not installed) fixes a host package's
-   first install: it left the filter stopped until chrony restarted.  The script is past the limit of shell (floats and stats
+   each reading.  0.1.5 (built, not installed) adds `ALTERNATE_TAU=off`
+   and `ALTERNATE_DAYS`, and fixes a host package's first install (0.1.4,
+   never installed): it left the filter stopped until chrony restarted.  The script is past the limit of shell (floats and stats
    through `awk`, several processes a reading): its next change moves it
    to Python, or to Rust with phase 2.
 4. Integrate with chronymon.  chronymond reads the `tempcomp` line's

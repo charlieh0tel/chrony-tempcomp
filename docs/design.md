@@ -471,7 +471,10 @@ host comes in a package; config files are replaced, never edited.  The
 unit is `Type=simple`: systemd 252 can lose a short-lived
 `systemd-notify`'s `READY=1`, failing the start, where a lost watchdog
 ping is covered by the next.  `ALTERNATE_TAU` sets another time constant
-for odd UTC days, to compare two on a host (status, test 2).
+for odd (or, with `ALTERNATE_DAYS`, even) UTC days, to compare two on a
+host, or `off`: `OFF_VALUE` written those days, no compensation, the
+filter running on at `TAU` so the next day starts settled (status, test
+2).
 
 A Kalman filter with this model (the crystal's temperature as the
 state, a first-order lag as its process, the sensor's jitter as the

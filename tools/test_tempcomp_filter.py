@@ -198,6 +198,33 @@ def test_an_alternate_time_constant_holds_on_odd_utc_days(tmp_path):
     assert tau_at(tmp_path, 20001 * day - 1, ALTERNATE_TAU="0") == "300"
     assert tau_at(tmp_path, 20001 * day, ALTERNATE_TAU="0") == "0"
     assert tau_at(tmp_path, 20002 * day, ALTERNATE_TAU="0") == "300"
+    even = {"ALTERNATE_TAU": "off", "ALTERNATE_DAYS": "even"}
+    assert tau_at(tmp_path, 20001 * day, **even) == "300"
+    assert tau_at(tmp_path, 20002 * day, **even) == "off"
+
+
+def today_alternates():
+    """Settings that make today an ALTERNATE_TAU day."""
+    odd = time.time() // 86400 % 2 == 1
+    return {"ALTERNATE_DAYS": "odd" if odd else "even"}
+
+
+def test_off_days_write_no_compensation_and_filter_on(tmp_path):
+    sensor = tmp_path / "sensor"
+    sensor.write_text("50000\n")
+    with open("/proc/uptime") as uptime:
+        now = float(uptime.read().split()[0])
+    (tmp_path / "temp.state").write_text(f"40000.0 {now}\n")
+    process = start(tmp_path, sensor, ALTERNATE_TAU="off", **today_alternates())
+    try:
+        assert wait_for(tmp_path / "temp") == "54514\n"
+        state = wait_for(
+            tmp_path / "temp.state", lambda text: float(text.split()[0]) > 40000
+        )
+        assert 40000 < float(state.split()[0]) < 40100
+    finally:
+        stop(process)
+    assert "off (writing 54514, filtering at tau 300 s)" in process.stdout.read()
 
 
 def test_no_time_constant_passes_readings_without_logging_gaps(tmp_path):
