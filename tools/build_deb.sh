@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-readonly VERSION=0.1.3
+readonly VERSION=0.1.4
 TOOLS=$(cd "$(dirname "$0")" && pwd)
 readonly TOOLS
 readonly HOST_SETTINGS=/etc/tempcomp-filter.d/host.conf

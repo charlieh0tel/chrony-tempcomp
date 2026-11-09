@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -e
 
-if [ "$1" = configure ] && [ -d /run/systemd/system ]; then
-  systemctl try-restart tempcomp-filter.service
+# restart, not try-restart: the filter's own postinst ran before these
+# settings left .dpkg-new, so its start was skipped.
+if [ "$1" = configure ] && [ -d /run/systemd/system ] \
+  && systemctl is-enabled --quiet tempcomp-filter.service; then
+  systemctl restart tempcomp-filter.service
 fi

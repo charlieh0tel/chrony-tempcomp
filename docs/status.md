@@ -126,9 +126,9 @@ next.
       2.0 days (`data/filter-gain-apu-0.txt`; its 0.1 degree sensor has
       little step to smooth) 0.0277 at 180 s and 0.0276 at 300 s against
       0.0316, holdover even at 1 and 4 h; `TAU` 180 there
-      (`tempcomp-filter-apu-0`), not installed: chronyd's AppArmor profile
-      there reads only sysfs and `/run/chrony`, so 0.1.3 writes into the
-      latter.  Repeat on more days:
+      (`tempcomp-filter-apu-0`), read by chronyd from its restart at
+      01:16:44 UTC on 2026-11-09 (0.1.3, which writes into `/run/chrony`,
+      as chronyd's AppArmor profile there reads only that and sysfs).  Repeat on more days:
       the crystal's own frequency each minute against the installed line
       on the sensor as chronyd reads it (an instant reading every 15 s)
       and on the filter's output (every 5 s through `tau`), same minutes;
@@ -146,11 +146,13 @@ next.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
-   0.1.3 (built, not installed): output in `/run/chrony`, run as
+   0.1.3 on both hosts (draws's chrony restarted 01:17:20 UTC on
+   2026-11-09, `TAU` 300 that day): output in `/run/chrony`, run as
    `_chrony` after chrony; settings from a per-host package in
    `/etc/tempcomp-filter.d`, `/etc/default/tempcomp-filter` shipped
    commented out; `ALTERNATE_TAU`; `TAU` 0 no longer logs a gap restart
-   each reading.  The script is past the limit of shell (floats and stats
+   each reading.  0.1.4 (built, not installed) fixes a host package's
+   first install: it left the filter stopped until chrony restarted.  The script is past the limit of shell (floats and stats
    through `awk`, several processes a reading): its next change moves it
    to Python, or to Rust with phase 2.
 4. Integrate with chronymon.  chronymond reads the `tempcomp` line's
