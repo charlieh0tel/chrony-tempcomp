@@ -77,5 +77,17 @@ steps and an hour after each left out, with the installed line:
         --exclude 1793982019:1793987419 1794000506:1794010407 \
         1794004511:1794004583 1794010649:1794012844
 
+`filter-gain-draws-fit.txt` and `filter-gain-apu-0-fit.txt` add `--fit`
+and each host's second recording, as copied at 21:18 UTC on 2026-11-09
+(archived in `2026-11-09/`; draws's from 18:13 UTC on 11-08, apu-0's
+from 23:19 UTC): the line fitted for each time constant about the same
+T0, each whole day scored on the fit to the others.  Only whole days are
+held out, two on each host:
+
+    filter_gain.py pps-20261106T155224.csv pps-20261108T181345.csv --fit ...
+    filter_gain.py pps-20261106T155019.csv pps-20261108T231921.csv --fit ...
+
+with the same sensor, line and spans as above.
+
 `smoothing-off.txt` is `study/smoothing.py --compensation off draws.npz`,
 its 5 whole days before the `tempcomp` line came on.

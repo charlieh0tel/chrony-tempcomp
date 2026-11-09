@@ -5,7 +5,7 @@ recordings.
 
 Usage:
   filter_gain.py RUN.csv ... --sensor PATH --line T0 K0 K1 K2 \
-      [--taus SECONDS ...] [--exclude FROM:TO ...]
+      [--taus SECONDS ...] [--exclude FROM:TO ...] [--fit]
 
 The truth is the crystal's own frequency each minute, from PPS against
 CLOCK_MONOTONIC_RAW.  The recorder's 1 Hz sensor readings are replayed as
@@ -24,6 +24,11 @@ error of the 15 minutes before it.  And the noise each pushes into chronyd:
 the RMS of the compensation's change from one of chronyd's readings to the
 next, a frequency step its loop then chases, which the per-minute fit does
 not see.
+
+With `--fit`, each time constant gets its own line, fitted to the crystal
+through that filter (about `--line`'s T0), and each day is scored on the
+line fitted to the other days: a fair test of the lag, where the installed
+line, fitted to the unfiltered sensor, favors no filter.
 """
 
 from __future__ import annotations
@@ -34,7 +39,14 @@ from collections.abc import Sequence
 import numpy as np
 from pps_step import load_run
 from raw_minutes import exclude, place, read_piece, span
-from room_days import MILLIDEGREES, SECONDS_PER_DAY, STEP, rms
+from room_days import (
+    MILLIDEGREES,
+    SECONDS_PER_DAY,
+    STEP,
+    day_folds,
+    rms,
+    trimmed_fit,
+)
 
 # Seconds between chronyd's readings (the tempcomp line's interval) and
 # the filter's, as on draws.
@@ -206,6 +218,44 @@ def installed(
     return comps, dict.fromkeys(taus, line)
 
 
+def fitted(
+    grid: np.ndarray,
+    frequency: np.ndarray,
+    pieces: Sequence[tuple[np.ndarray, np.ndarray]],
+    t0: float,
+    taus: Sequence[float],
+) -> tuple[dict[float, np.ndarray], dict[float, Sequence[float]]]:
+    """(each time constant's compensation per grid minute, its line): a
+    quadratic in what chronyd reads, about `t0`, fitted to the crystal for
+    each time constant; each day's compensation from the fit to the others,
+    the line from all.  The fit is linear in chronyd's minute means of d and
+    d squared (d the value less `t0`), so the minute's mean compensation is
+    exact.  k0 is left 0: chronyd's frequency takes up a constant."""
+    comps: dict[float, np.ndarray] = {}
+    lines: dict[float, Sequence[float]] = {}
+    for tau in taus:
+        reads = [chronyd_reads(times, readings, tau) for times, readings in pieces]
+        moments = [
+            side_by_side(
+                [
+                    minute_mean(ticks, (values - t0) ** power, grid)
+                    for ticks, values in reads
+                ]
+            )
+            for power in (1, 2)
+        ]
+        x = np.column_stack([np.ones(len(grid)), *moments])
+        own = -frequency
+        good = ~np.isnan(own) & ~np.isnan(x).any(axis=1)
+        comp = np.full(len(grid), np.nan)
+        for fit, held in day_folds(grid, good):
+            comp[held] = x[held] @ trimmed_fit(x[fit], own[fit])
+        _, k1, k2 = trimmed_fit(x[good], own[good])
+        comps[tau] = comp
+        lines[tau] = (t0, 0.0, float(k1), float(k2))
+    return comps, lines
+
+
 def report(
     grid: np.ndarray,
     frequency: np.ndarray,
@@ -225,7 +275,7 @@ def report(
         "  tau s  RMS ppm  by day ppm"
         + " " * max(0, 7 * len(days) - 10)
         + "".join(f"  {h:2d} h us" for h in HOLDOVER_HOURS)
-        + "  step ppb"
+        + "  step ppb  k1 ppm/unit k2 ppm/unit^2"
     )
     for tau, comp in comps.items():
         error = np.where(good, frequency + comp, np.nan)
@@ -244,6 +294,7 @@ def report(
         noise = rms(changes) * PPB_PER_PPM
         print(
             f"  {tau:5.0f}   {rms(error[good]):.4f}   {by_day}{holdover}  {noise:8.2f}"
+            f"  {lines[tau][2]:.4e} {lines[tau][3]:.4e}"
         )
 
 
@@ -262,12 +313,23 @@ def main() -> None:
     )
     parser.add_argument("--taus", nargs="+", type=float, default=TAUS)
     parser.add_argument("--exclude", nargs="*", type=span, default=[], help="FROM:TO")
+    parser.add_argument(
+        "--fit",
+        action="store_true",
+        help="fit the line for each time constant, about --line's T0, each"
+        " day scored on the fit to the others",
+    )
     args = parser.parse_args()
     arrays = place([read_piece(path, args.sensor) for path in args.runs])
     exclude(arrays, args.exclude)
     pieces = [read_readings(path, args.sensor) for path in args.runs]
     grid = arrays["at"]
-    comps, lines = installed(grid, pieces, args.line, args.taus)
+    if args.fit:
+        comps, lines = fitted(
+            grid, arrays["frequency"], pieces, args.line[0], args.taus
+        )
+    else:
+        comps, lines = installed(grid, pieces, args.line, args.taus)
     report(grid, arrays["frequency"], pieces, comps, lines)
 
 

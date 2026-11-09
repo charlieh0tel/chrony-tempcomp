@@ -6,6 +6,7 @@ import pytest
 from filter_gain import (
     compensation,
     filtered,
+    fitted,
     holdover_errors,
     minute_compensation,
     sample,
@@ -119,3 +120,25 @@ def test_the_filter_shrinks_the_steps_of_a_jittery_sensor():
         return np.std(steps(times, readings, LINE, tau, grid, good))
 
     assert noise(180.0) < 0.1 * noise(0.0)
+
+
+def test_the_fit_finds_the_line_and_favors_the_right_time_constant():
+    """A crystal 300 s behind three days of moving temperature, read through
+    a 0.5 degree step: each time constant's fitted line is near the true
+    one, and the fit through 300 s leaves less than through none."""
+    rng = np.random.default_rng(3)
+    times = np.arange(0.0, 3 * 86400.0)
+    latent = 55000 + 3000 * np.sin(2 * np.pi * times / 7200)
+    readings = np.round((latent + rng.normal(0, 200, len(times))) / 500) * 500
+    ticks, crystal = filtered(times, latent, 300.0, period=1.0)
+    grid = np.arange(0.0, times[-1], STEP)
+    minute = ((ticks - grid[0]) // STEP).astype(int)
+    frequency = -np.bincount(minute, compensation(LINE, crystal)) / np.bincount(minute)
+    comps, lines = fitted(grid, frequency, [(times, readings)], LINE[0], (0.0, 300.0))
+    assert lines[300.0][2] == pytest.approx(LINE[2], rel=0.02)
+
+    def error(tau):
+        residual = frequency + comps[tau]
+        return np.nanstd(residual)
+
+    assert error(300.0) < 0.5 * error(0.0)
