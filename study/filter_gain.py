@@ -93,6 +93,18 @@ def filtered(
     return ticks, output
 
 
+def chronyd_reads(
+    times: np.ndarray, readings: np.ndarray, tau: float, interval: float = INTERVAL
+) -> tuple[np.ndarray, np.ndarray]:
+    """(chronyd's reading times, the value it reads at each): the sensor
+    (tau 0) or the filter's output, every `interval` s."""
+    if tau > 0:
+        times, readings = filtered(times, readings, tau)
+    known = ~np.isnan(readings)
+    ticks = ticks_over(times, interval)
+    return ticks, sample(times[known], readings[known], ticks)
+
+
 def applied(
     times: np.ndarray,
     readings: np.ndarray,
@@ -100,13 +112,19 @@ def applied(
     tau: float,
     interval: float = INTERVAL,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """(chronyd's reading times, the compensation it applies at each),
-    reading the sensor (tau 0) or the filter's output every `interval` s."""
-    if tau > 0:
-        times, readings = filtered(times, readings, tau)
-    known = ~np.isnan(readings)
-    ticks = ticks_over(times, interval)
-    return ticks, compensation(line, sample(times[known], readings[known], ticks))
+    """(chronyd's reading times, the compensation it applies at each)."""
+    ticks, values = chronyd_reads(times, readings, tau, interval)
+    return ticks, compensation(line, values)
+
+
+def minute_mean(ticks: np.ndarray, values: np.ndarray, grid: np.ndarray) -> np.ndarray:
+    """The mean of the values in each grid minute, NaN where none."""
+    minute = ((ticks - grid[0]) // STEP).astype(int)
+    inside = (minute >= 0) & (minute < len(grid)) & ~np.isnan(values)
+    total = np.bincount(minute[inside], values[inside], len(grid))
+    count = np.bincount(minute[inside], minlength=len(grid))
+    with np.errstate(invalid="ignore"):
+        return np.where(count > 0, total / np.maximum(count, 1), np.nan)
 
 
 def minute_compensation(
@@ -118,13 +136,15 @@ def minute_compensation(
     interval: float = INTERVAL,
 ) -> np.ndarray:
     """The mean compensation chronyd applies in each grid minute."""
-    ticks, applied_then = applied(times, readings, line, tau, interval)
-    minute = ((ticks - grid[0]) // STEP).astype(int)
-    inside = (minute >= 0) & (minute < len(grid)) & ~np.isnan(applied_then)
-    total = np.bincount(minute[inside], applied_then[inside], len(grid))
-    count = np.bincount(minute[inside], minlength=len(grid))
-    with np.errstate(invalid="ignore"):
-        return np.where(count > 0, total / np.maximum(count, 1), np.nan)
+    return minute_mean(*applied(times, readings, line, tau, interval), grid)
+
+
+def side_by_side(pieces: Sequence[np.ndarray]) -> np.ndarray:
+    """One grid array from each file's, the first known value at each minute."""
+    combined = np.full(len(pieces[0]), np.nan)
+    for piece in pieces:
+        combined = np.where(np.isnan(combined), piece, combined)
+    return combined
 
 
 def steps(
@@ -166,21 +186,35 @@ def holdover_errors(error: np.ndarray, hours: int) -> np.ndarray:
     return np.array(results)
 
 
+def installed(
+    grid: np.ndarray,
+    pieces: Sequence[tuple[np.ndarray, np.ndarray]],
+    line: Sequence[float],
+    taus: Sequence[float],
+) -> tuple[dict[float, np.ndarray], dict[float, Sequence[float]]]:
+    """(each time constant's compensation per grid minute, its line): the
+    one line for all."""
+    comps = {
+        tau: side_by_side(
+            [
+                minute_compensation(times, readings, line, tau, grid)
+                for times, readings in pieces
+            ]
+        )
+        for tau in taus
+    }
+    return comps, dict.fromkeys(taus, line)
+
+
 def report(
     grid: np.ndarray,
     frequency: np.ndarray,
     pieces: Sequence[tuple[np.ndarray, np.ndarray]],
-    line: Sequence[float],
-    taus: Sequence[float],
+    comps: dict[float, np.ndarray],
+    lines: dict[float, Sequence[float]],
 ) -> None:
-    # Each scheme's compensation per grid minute, the files laid side by side.
-    comps = {}
-    for tau in taus:
-        comp = np.full(len(grid), np.nan)
-        for times, readings in pieces:
-            piece = minute_compensation(times, readings, line, tau, grid)
-            comp = np.where(np.isnan(comp), piece, comp)
-        comps[tau] = comp
+    """Scores each time constant's compensation per grid minute, with its
+    line for the steps."""
     good = ~np.isnan(frequency)
     for comp in comps.values():
         good &= ~np.isnan(comp)
@@ -203,7 +237,7 @@ def report(
             holdover += f"  {rms(held):7.1f}" if len(held) else "        -"
         changes = np.concatenate(
             [
-                steps(times, readings, line, tau, grid, good)
+                steps(times, readings, lines[tau], tau, grid, good)
                 for times, readings in pieces
             ]
         )
@@ -232,7 +266,9 @@ def main() -> None:
     arrays = place([read_piece(path, args.sensor) for path in args.runs])
     exclude(arrays, args.exclude)
     pieces = [read_readings(path, args.sensor) for path in args.runs]
-    report(arrays["at"], arrays["frequency"], pieces, args.line, args.taus)
+    grid = arrays["at"]
+    comps, lines = installed(grid, pieces, args.line, args.taus)
+    report(grid, arrays["frequency"], pieces, comps, lines)
 
 
 if __name__ == "__main__":
