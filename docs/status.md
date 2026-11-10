@@ -161,7 +161,13 @@ next.
       on odd UTC days since the epoch (the first 2026-11-10), filtering on
       underneath, logged at each switch: on draws from 21:22 UTC on
       2026-11-09, and on apu-0 (`tempcomp-filter-apu-0`, `TAU` 180) from
-      21:23 UTC, the same days.  Each switch is a step in the
+      21:23 UTC, the same days.  The first off day began on time on
+      both: at 00:00 UTC on 2026-11-10 the filter logged the switch and
+      chronyd's next reading (00:00:09 on draws, 00:00:03 on apu-0) put
+      the compensation to 0, a step of 0.887 ppm on draws and 0.293 on
+      apu-0; the filter ran on underneath (60816 against a sensor of
+      60148 to 62300 on draws, 65813 against 65200 to 66300 on apu-0),
+      both stayed on their reference, and both recorders kept writing.  Each switch is a step in the
       compensation (as much as the line gives at the day's temperature),
       which chronyd must absorb; judge from an hour after it.
    3. Holdover: the reference cut for a few hours, filter on and off, the
