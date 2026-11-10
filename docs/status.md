@@ -129,19 +129,25 @@ next.
       (`tempcomp-filter-apu-0`), read by chronyd from its restart at
       01:16:44 UTC on 2026-11-09 (0.1.3, which writes into `/run/chrony`,
       as chronyd's AppArmor profile there reads only that and sysfs).
-      Fitting the line for each `tau` (`--fit`, with the second
-      recordings to 21:18 UTC on 2026-11-09; two whole days held out on
-      each host, each scored on the fit to the other) keeps the answer:
-      draws best at 300 s, 0.0239 against 0.0402 unfiltered (41% less),
-      holdover 43 against 59 us after 1 h, 212 against 313 after 4 h;
-      apu-0 best at 450 s, 0.0397 against 0.0455 (13%), holdover a little
-      worse at 1 and 4 h (66 against 64 us, 566 against 539) and better
-      at 24 h.  The fitted lines barely move with `tau` (k1 within 1%), so
-      fitting to the unfiltered sensor did not bias the choice; both sit
-      near the installed lines (draws's k2 -6.2e-9 against -6.86e-9,
-      apu-0's k1 1.33e-4 and k2 -8.2e-9 against 1.28e-4 and -6.25e-9).
-      apu-0's day since its reboot fits worse at every `tau` (0.050
-      against 0.041 unfiltered), cause unknown.  Repeat on more days:
+      With the second recordings to 19:00 UTC on 2026-11-10
+      (`data/filter-gain-*-all.txt`, `*-fit.txt`), which take in test 2's
+      first off day, and a line fitted for each `tau` (`--fit`; three whole
+      days held out on each host, each scored on the fit to the others),
+      the answer holds: draws best at 300 to 450 s, 0.0246 against 0.0400
+      unfiltered (39% less), holdover 49 against 65 us after 1 h, 246
+      against 326 after 4 h, 1.7 against 2.4 ms after 24 h; apu-0 best at
+      450 s, 0.0393 against 0.0452 (13%), holdover even at 1 and 4 h and
+      3.6 against 4.3 ms at 24 h.  No compensation, on the same minutes,
+      leaves 0.49 ppm on draws and 0.44 on apu-0, and holdover errors of
+      0.3 ms after 1 h, 3.5 to 4.2 ms after 4 h and 38 to 46 ms after 24 h:
+      the filtered line cuts them 4 to 6 times at 1 h, 6 to 17 times at
+      4 h and 11 to 27 times at 24 h.  The fitted lines barely move with
+      `tau` (k1 within 1%), so fitting to the unfiltered sensor did not
+      bias the choice; both sit near the installed lines (draws's k2
+      -6.2e-9 against -6.86e-9, apu-0's k1 1.32e-4 and k2 -8.4e-9 against
+      1.28e-4 and -6.25e-9).  apu-0's days since its reboot fit the
+      installed line worse (0.05 to 0.06 ppm against 0.03), cause unknown.
+      Repeat on more days:
       the crystal's own frequency each minute against the installed line
       on the sensor as chronyd reads it (an instant reading every 15 s)
       and on the filter's output (every 5 s through `tau`), same minutes;

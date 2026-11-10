@@ -88,7 +88,8 @@ sensor read as chronyd reads it and through the filter at each time
 constant, and scores each against the crystal's own frequency: RMS, day
 by day, and the time error over 1, 4 and 24 h of holdover.  And the noise
 each pushes into chronyd: the RMS change of the compensation from one of
-chronyd's readings to the next, a frequency step its loop chases.  With
+chronyd's readings to the next, a frequency step its loop chases.  A
+first row scores no compensation at all.  With
 `--fit`, each time constant gets its own line, fitted to the crystal
 through that filter, and each day is scored on the line fitted to the
 other days.

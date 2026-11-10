@@ -23,7 +23,7 @@ each hour's start, with chronyd's frequency at the loss taken as the mean
 error of the 15 minutes before it.  And the noise each pushes into chronyd:
 the RMS of the compensation's change from one of chronyd's readings to the
 next, a frequency step its loop then chases, which the per-minute fit does
-not see.
+not see.  A first row, off, scores no compensation at all.
 
 With `--fit`, each time constant gets its own line, fitted to the crystal
 through that filter (about `--line`'s T0), and each day is scored on the
@@ -277,7 +277,9 @@ def report(
         + "".join(f"  {h:2d} h us" for h in HOLDOVER_HOURS)
         + "  step ppb  k1 ppm/unit k2 ppm/unit^2"
     )
-    for tau, comp in comps.items():
+
+    def scores(comp: np.ndarray) -> str:
+        """RMS, by day and holdover of the error left with `comp`."""
         error = np.where(good, frequency + comp, np.nan)
         error -= np.nanmedian(error)
         by_day = " ".join(f"{rms(error[good & (day == d)]):.4f}" for d in days)
@@ -285,6 +287,11 @@ def report(
         for hours in HOLDOVER_HOURS:
             held = holdover_errors(error, hours)
             holdover += f"  {rms(held):7.1f}" if len(held) else "        -"
+        return f"{rms(error[good]):.4f}   {by_day}{holdover}"
+
+    # No compensation: the crystal's own frequency is the error.
+    print(f"    off   {scores(np.zeros(len(grid)))}  {0:8.2f}")
+    for tau, comp in comps.items():
         changes = np.concatenate(
             [
                 steps(times, readings, lines[tau], tau, grid, good)
@@ -293,7 +300,7 @@ def report(
         )
         noise = rms(changes) * PPB_PER_PPM
         print(
-            f"  {tau:5.0f}   {rms(error[good]):.4f}   {by_day}{holdover}  {noise:8.2f}"
+            f"  {tau:5.0f}   {scores(comp)}  {noise:8.2f}"
             f"  {lines[tau][2]:.4e} {lines[tau][3]:.4e}"
         )
 
