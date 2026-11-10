@@ -159,7 +159,7 @@ next.
       (`tracking.log`, `tempcomp.log`), the filter at `TAU` 300 and
       compensation off alternated daily for about a week, so weather and
       load even out.  Filtered against unfiltered is largely answered (the
-      tenfold below), so off is the comparison that matters.  A script's
+      steadying below), so off is the comparison that matters.  A script's
       cron job on draws ran `TAU` 0 from 23:48 to 23:55 UTC on 2026-11-08
       and was removed, as changes to a host go in packages.  0.1.3's
       `ALTERNATE_TAU=0` alternated with unfiltered; 0.1.5's
@@ -179,10 +179,12 @@ next.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
-   chronyd itself steadied about tenfold on each host when it began
-   reading the filter (`tracking.log`, 2.5 h before and after): apu-0's
-   frequency step SD 8.1 to 0.7 ppb, skew 17 to 2 ppb, offset RMS 127 to
-   10 ns; draws's 25.8 to 1.8 ppb, 30 to 3 ppb, 5.6 us to 188 ns.  draws's
+   chronyd itself steadied when it began reading the filter
+   (`tracking.log`, 2.5 h before chronyd's restart and from 10 min after
+   the switch): apu-0's frequency step SD 8.1 to 0.7 ppb, skew 17 to 2
+   ppb, offset RMS 127 to 10 ns; draws's 9.2 to 1.8 ppb, 30 to 3 ppb, 645
+   to 188 ns.  (draws's 25.8 ppb and 5.6 us, given before, took in its
+   restart at 20:45:09 and 4 min uncompensated.)  draws's
    0.1.3 restart, filtered on both sides, changed nothing (1.9 to 1.7 ppb).
    Each jitter of an unfiltered reading is a frequency step chronyd
    chases (0.013 ppm per 0.1 degree on apu-0); the replay, scoring the fit
