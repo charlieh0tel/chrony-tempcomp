@@ -180,12 +180,14 @@ next.
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
    chronyd itself steadied when it began reading the filter
-   (`tracking.log`, 2.5 h before chronyd's restart and from 10 min after
-   the switch): apu-0's frequency step SD 8.1 to 0.7 ppb, skew 17 to 2
-   ppb, offset RMS 127 to 10 ns; draws's 9.2 to 1.8 ppb, 30 to 3 ppb, 645
-   to 188 ns.  (draws's 25.8 ppb and 5.6 us, given before, took in its
-   restart at 20:45:09 and 4 min uncompensated.)  draws's
-   0.1.3 restart, filtered on both sides, changed nothing (1.9 to 1.7 ppb).
+   (`tracking.log`, 2 h ending 10 min before chronyd's restart and 2 h
+   starting 30 min after the switch, clear of the install and the
+   settling): apu-0's frequency step SD 7.8 to 0.70 ppb, skew 17 to 2 ppb,
+   offset RMS 120 to 10 ns; draws's 9.2 to 0.91 ppb, 29 to 2 ppb, 646 to
+   140 ns.  (draws's 25.8 ppb and 5.6 us, given before, took in its
+   restart at 20:45:09 and 4 min uncompensated.)  draws's 0.1.3 restart,
+   filtered on both sides, spans taken the same way: 2.0 to 1.3 ppb, 183
+   to 155 ns, about what spans a few hours apart differ by unchanged.
    Each jitter of an unfiltered reading is a frequency step chronyd
    chases (0.013 ppm per 0.1 degree on apu-0); the replay, scoring the fit
    to the crystal each minute, does not see that; its step column does:
