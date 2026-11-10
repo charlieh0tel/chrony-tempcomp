@@ -253,6 +253,10 @@ def test_an_output_that_goes_is_logged_once_and_written_again(tmp_path):
     time.sleep(0.5)
     directory.mkdir()
     wait_for(output)
+    # The recovery is logged after the output is written, before the state.
+    state = tmp_path / "temp.state"
+    before = state.read_text()
+    wait_for(state, lambda text: text not in ("", before))
     stop(process)
     assert process.stderr.read().count("cannot write") == 1
     assert f"{output} written again after " in process.stdout.read()
