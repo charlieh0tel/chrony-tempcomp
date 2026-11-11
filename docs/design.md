@@ -509,16 +509,16 @@ removing the file does not turn compensation off.
 Three steps, smallest first; each stands alone.
 
 1. **A lag on `tempcomp`** ("Proposal for chrony", below).  Phase 1 is
-   the evidence.  Held until step 2 is tested, since step 2 may change
-   what is asked for.
-2. **chronyd accounts for its own `tempcomp` steps** (below).
-   Untested.
+   the evidence.
+2. **chronyd accounting for its own `tempcomp` steps** (below).
+   Examined in the source; not pursued.
 3. **A learned line** ("Learning", below), prototyped in this program
    first; upstream only after months of holdover tests, if ever.
 
 Not planned: applying `tempcomp` only when chronyd is not synchronized.
-Step 2 gets the same benefit without a mode switch, a lag in noticing
-the loss, or a hand-back on re-lock.  Compensation on GPS loss
+With the filter, compensation cost little while locked (test 2), less
+than a mode switch, a lag in noticing the loss and a hand-back on
+re-lock would add.  Compensation on GPS loss
 (feed-forward) needs nothing new: `tempcomp` already keeps adjusting on
 top of chronyd's last frequency estimate in holdover, and step 3 makes
 that adjustment right.
@@ -528,18 +528,26 @@ that adjustment right.
 `LCL_SetTempComp` sets the kernel's frequency without calling the
 parameter change handlers; `LCL_SetAbsoluteFrequency` and
 `LCL_AccumulateDeltaFrequency`, the loop's own changes, call them
-(`local.c`, chrony 4.6).  So each change in the compensation is a
+(`local.c`, chrony 4.6; `LCL_SetTempComp` and `tempcomp.c` unchanged
+in substance on master at c97d808).  So each change in the compensation is a
 frequency step the rest of chronyd is not told about: the samples
 before and after it are fitted as one, and the estimate chases the
 bend over the next updates.  That is the noise phase 1 measured with
 raw readings, and why no correction was quietest while locked (test 2).
 
-Hypothesis: calling the handlers from `LCL_SetTempComp` lets chronyd
-correct its samples for the step as it does for its own, so
-compensation costs little while locked and still helps in holdover; it
-may also make the lag matter less.  To be shown before it is proposed:
-first offline, then perhaps on a patched chronyd on draws.  How to
-test it offline is open.
+Calling the handlers is not the fix.  The handlers (`slew_sources`,
+`sources.c`; `slew_samples`, `refclock.c`) call `SST_SlewSamples` and
+`SPF_SlewSamples`, which rewrite each stored sample "as though [it]
+were sampled under the new regime" and shift the estimated frequency
+by the change (`sourcestats.c`).  That assumes the clock's own rate
+did not change, true of the loop's own adjustments.  A `tempcomp`
+change is meant to cancel a change in the crystal happening at the
+same time, so the regression sees only the difference: not calling
+the handlers is right for the part of the change that tracks the
+crystal, and calling them would be right only for the part that is
+sensor noise.  With raw readings the noise dominates; with the filter
+the tracking does.  The design is consistent; the filter is what makes
+its assumption hold.  Examined, not pursued.
 
 ### Learning
 
@@ -737,9 +745,9 @@ requests.
 - Frequency source for learning: chronyd or chronymon's database.
 - Learning: the daily refit as the baseline, recursive least squares
   as the candidate; replay before either runs on a host.
-- Proposal for chrony: after the change-handler test (phase 2, step 2).
-- How to test the change handlers: a simulation of chronyd's loop, a
-  patched chronyd, or both.
+- Proposal for chrony: when to ask.
+- A simulation of chronyd's loop for testing: the real chronyd under a
+  simulated clock, or a model of it.
 - Several sensors: which hosts to record, and for how long.
 - Measurements: why draws fits about 10 min in quiet running and 0.75 min
   under load, from days of raw frequency; the same check on another host
