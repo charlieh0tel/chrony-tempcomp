@@ -541,13 +541,16 @@ Calling the handlers is not the fix.  The handlers (`slew_sources`,
 were sampled under the new regime" and shift the estimated frequency
 by the change (`sourcestats.c`).  That assumes the clock's own rate
 did not change, true of the loop's own adjustments.  A `tempcomp`
-change is meant to cancel a change in the crystal happening at the
-same time, so the regression sees only the difference: not calling
-the handlers is right for the part of the change that tracks the
-crystal, and calling them would be right only for the part that is
-sensor noise.  With raw readings the noise dominates; with the filter
-the tracking does.  The design is consistent; the filter is what makes
-its assumption hold.  Examined, not pursued.
+change is meant to cancel the crystal's change, so the regression sees
+only the difference: the sensor's noise, and the timing error of the
+sensor against the crystal (heat from the CPU reaches the die sensor
+before the crystal; heat from outside may reach the crystal first).
+Not calling the handlers treats the whole change as tracking the
+crystal; calling them would treat it as if the crystal had not moved.
+Neither is physical, and neither fixes the timing: only a model of the
+path from sensor to crystal does, the lag being its first order.  Not
+calling them is the choice that becomes right as that model improves.
+Examined, not pursued.
 
 ### Learning
 
