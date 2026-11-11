@@ -504,7 +504,44 @@ removing the file does not turn compensation off.
 - chronyd ignores a compensation past 10 ppm, so a wrong line cannot
   push the clock past that.
 
-## Phase 2: guarded learning
+## Phase 2: chronyd's own steps, then learning
+
+Three steps, smallest first; each stands alone.
+
+1. **A lag on `tempcomp`** ("Proposal for chrony", below).  Phase 1 is
+   the evidence.  Held until step 2 is tested, since step 2 may change
+   what is asked for.
+2. **chronyd accounts for its own `tempcomp` steps** (below).
+   Untested.
+3. **A learned line** ("Learning", below), prototyped in this program
+   first; upstream only after months of holdover tests, if ever.
+
+Not planned: applying `tempcomp` only when chronyd is not synchronized.
+Step 2 gets the same benefit without a mode switch, a lag in noticing
+the loss, or a hand-back on re-lock.  Compensation on GPS loss
+(feed-forward) needs nothing new: `tempcomp` already keeps adjusting on
+top of chronyd's last frequency estimate in holdover, and step 3 makes
+that adjustment right.
+
+### chronyd's own steps
+
+`LCL_SetTempComp` sets the kernel's frequency without calling the
+parameter change handlers; `LCL_SetAbsoluteFrequency` and
+`LCL_AccumulateDeltaFrequency`, the loop's own changes, call them
+(`local.c`, chrony 4.6).  So each change in the compensation is a
+frequency step the rest of chronyd is not told about: the samples
+before and after it are fitted as one, and the estimate chases the
+bend over the next updates.  That is the noise phase 1 measured with
+raw readings, and why no correction was quietest while locked (test 2).
+
+Hypothesis: calling the handlers from `LCL_SetTempComp` lets chronyd
+correct its samples for the step as it does for its own, so
+compensation costs little while locked and still helps in holdover; it
+may also make the lag matter less.  To be shown before it is proposed:
+first offline, then perhaps on a patched chronyd on draws.  How to
+test it offline is open.
+
+### Learning
 
 Refit `tau` and the line periodically (daily) from the clock's own
 frequency (chronyd's frequency less the compensation) against the
@@ -522,18 +559,21 @@ tempcomp matters most and the frequency is not measured), and drop
 readings near restarts and steps.  The learned fit is kept in
 `/var/lib/chrony-tempcomp` and each adoption logged, old and new.
 
-A Kalman filter is the online alternative to the daily refit: state
-the crystal's temperature and the line's coefficients, measurements
-the sensor reading and the clock's own frequency, so it estimates the
-crystal's temperature and learns the line together, with their
-uncertainty.  Holdover handles itself: with no frequency measured,
-the update is skipped, learning stops and prediction carries on.
-Costs: the noise variances must be chosen, tuned or estimated (EM,
-innovation statistics); the coefficients as states make it nonlinear
-(extended or unscented); and a mistuned filter fails quietly, so the
-guards above still apply.  Start with the daily refit, whose results
-chronymon's page can reproduce; consider the Kalman filter once that
-is understood.
+A Kalman filter is the online alternative to the daily refit.  With
+`tau` fixed (phase 1's filter), it is recursive least squares: the
+line's coefficients are the state, each a random walk, so k0 also
+absorbs aging; the measurement is the clock's own frequency against
+the filtered temperature, weighted by chronyd's skew.  It is linear,
+and gives the coefficients' uncertainty.  Holdover handles itself:
+with no frequency measured, the update is skipped, learning stops and
+prediction carries on.  Learning `tau` too (the crystal's temperature
+as a state) makes it nonlinear (extended or unscented); not first.
+Costs: the random walks' variances must be chosen or estimated
+(innovation statistics); it learns from bad data after a step or from
+a bad reference; with little temperature spread it confuses aging
+with temperature; and a mistuned filter fails quietly, so the guards
+above still apply.  The daily refit, whose results chronymon's page
+can reproduce, is the baseline it must beat in the replay.
 
 Since the program would write the compensation itself, it could write
 the predicted correction directly (tempcomp `0 0 1 0`) and use models
@@ -695,8 +735,11 @@ requests.
 
 - Host for the phase 1 experiment.
 - Frequency source for learning: chronyd or chronymon's database.
-- Learning by daily refit or by Kalman filter.
-- Proposal for chrony: ask before or after the phase 1 experiment.
+- Learning: the daily refit as the baseline, recursive least squares
+  as the candidate; replay before either runs on a host.
+- Proposal for chrony: after the change-handler test (phase 2, step 2).
+- How to test the change handlers: a simulation of chronyd's loop, a
+  patched chronyd, or both.
 - Several sensors: which hosts to record, and for how long.
 - Measurements: why draws fits about 10 min in quiet running and 0.75 min
   under load, from days of raw frequency; the same check on another host
