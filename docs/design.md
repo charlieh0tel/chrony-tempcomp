@@ -511,7 +511,7 @@ Three steps, smallest first; each stands alone.
 1. **A lag on `tempcomp`** ("Proposal for chrony", below).  Phase 1 is
    the evidence.
 2. **chronyd accounting for its own `tempcomp` steps** (below).
-   Examined in the source; not pursued.
+   Open: which is right depends on two delays, not yet measured.
 3. **A learned line** ("Learning", below), prototyped in this program
    first; upstream only after months of holdover tests, if ever.
 
@@ -540,17 +540,33 @@ Calling the handlers is not the fix.  The handlers (`slew_sources`,
 `SPF_SlewSamples`, which rewrite each stored sample "as though [it]
 were sampled under the new regime" and shift the estimated frequency
 by the change (`sourcestats.c`).  That assumes the clock's own rate
-did not change, true of the loop's own adjustments.  A `tempcomp`
-change is meant to cancel the crystal's change, so the regression sees
-only the difference: the sensor's noise, and the timing error of the
-sensor against the crystal (heat from the CPU reaches the die sensor
-before the crystal; heat from outside may reach the crystal first).
-Not calling the handlers treats the whole change as tracking the
-crystal; calling them would treat it as if the crystal had not moved.
-Neither is physical, and neither fixes the timing: only a model of the
-path from sensor to crystal does, the lag being its first order.  Not
-calling them is the choice that becomes right as that model improves.
-Examined, not pursued.
+did not change, true of the loop's own adjustments.
+
+Which is right for a `tempcomp` change depends on two delays after the
+crystal shifts by d:
+
+- L, until the compensation has moved by about d: the thermal path to
+  the sensor, the sensor's processing, and the `tempcomp` interval.
+  Never zero.
+- Lloop, until chronyd's frequency estimate has taken in d from the
+  reference's offsets: several updates of its regression; on the
+  order of a minute or more with a PPS at poll 4, far longer over a
+  network.
+
+If L is much shorter than Lloop, the compensation cancels the crystal
+before the loop sees it; the error is d over L, and not calling the
+handlers is right.  If L is much longer, the loop has already taken
+the shift in, and the compensation applies it a second time; without
+the handlers the loop finds that only from new offsets and unwinds it
+over its regression window, while with them its estimate would shift
+at once and the next update remove it.  In holdover there is no loop,
+and any compensation earlier than the temperature changes helps.
+
+chronyd does not know where it sits between the two, so neither fixed
+choice suits both; a good reference shortens Lloop and moves it toward
+the second.  This is a real question for upstream, not simply a bug.
+Next: measure Lloop (chronyd's response to a known frequency step,
+from its logs or under simulation) and L for a host, before deciding.
 
 ### Learning
 
