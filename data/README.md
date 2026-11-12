@@ -117,3 +117,14 @@ sensor and spans left out, each whole day predicted from the others:
         --sensor /sys/class/hwmon/hwmon0/temp1_input \
         --exclude 1793982019:1793987419 1794000506:1794010407 \
         1794004511:1794004583 1794010649:1794012844
+
+`filter-gain-draws-blend.txt` and `filter-gain-apu-0-blend.txt` are
+`study/filter_gain.py` on the same recordings, sensor, line and spans as
+`filter-gain-*-all.txt`, with single lags and blends of a fast and a slow
+lag, each with its fitted line, and each family chosen day by day on the
+other days:
+
+    filter_gain.py ... --fit --choose \
+        --taus 0 60 120 180 300 450 600 900 1200 1800 \
+        --blend-fast 15 30 60 120 --blend-slow 600 1200 1800 3600 \
+        --blend-shares 0.2 0.4 0.6 0.8
