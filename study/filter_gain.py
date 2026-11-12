@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 from pps_step import load_run
@@ -65,6 +66,27 @@ SECONDS_PER_HOUR = 3600
 PPB_PER_PPM = 1000
 
 
+@dataclass(frozen=True)
+class Filter:
+    """A first-order lag of time constant `tau` s (0: none), or with `share`
+    of the output through a second, slower one of `slow` s."""
+
+    tau: float
+    slow: float = 0.0
+    share: float = 0.0
+
+    @property
+    def passes(self) -> bool:
+        """Whether the reading goes through unfiltered."""
+        return self.tau <= 0 and self.share == 0
+
+    @property
+    def label(self) -> str:
+        if self.share == 0:
+            return f"{self.tau:.0f}"
+        return f"{1 - self.share:.1f}x{self.tau:.0f}+{self.share:.1f}x{self.slow:.0f}"
+
+
 def compensation(line: Sequence[float], value: np.ndarray) -> np.ndarray:
     """chrony's tempcomp formula, ppm (`get_tempcomp`, `tempcomp.c`)."""
     t0, k0, k1, k2 = line
@@ -83,35 +105,43 @@ def ticks_over(times: np.ndarray, every: float) -> np.ndarray:
 
 
 def filtered(
-    times: np.ndarray, readings: np.ndarray, tau: float, period: float = PERIOD
+    times: np.ndarray, readings: np.ndarray, shape: Filter, period: float = PERIOD
 ) -> tuple[np.ndarray, np.ndarray]:
     """(the filter's ticks, its output at each): the last reading every
-    `period` s, unreadable ones skipped, through a first-order lag."""
+    `period` s, unreadable ones skipped, through `shape`'s lags."""
     known = ~np.isnan(readings)
     ticks = ticks_over(times, period)
     taken = sample(times[known], readings[known], ticks)
     output = np.full(len(ticks), np.nan)
-    f, then = np.nan, -np.inf
+    taus = (shape.tau, shape.slow)
+    weights = (1 - shape.share, shape.share)
+    gap = GAP_TAUS * max(taus)
+    # Each lag's state.
+    states = [np.nan, np.nan]
+    output_now, then = np.nan, -np.inf
     for i, (tick, reading) in enumerate(zip(ticks, taken, strict=True)):
         if np.isnan(reading):
-            output[i] = f
+            output[i] = output_now
             continue
-        if np.isnan(f) or tau <= 0 or tick - then > GAP_TAUS * tau:
-            f = reading
-        else:
-            f += (1 - np.exp(-(tick - then) / tau)) * (reading - f)
+        restart = np.isnan(states[0]) or tick - then > gap
+        for j, tau in enumerate(taus):
+            if restart or tau <= 0:
+                states[j] = reading
+            else:
+                states[j] += (1 - np.exp(-(tick - then) / tau)) * (reading - states[j])
+        output_now = weights[0] * states[0] + weights[1] * states[1]
         then = tick
-        output[i] = f
+        output[i] = output_now
     return ticks, output
 
 
 def chronyd_reads(
-    times: np.ndarray, readings: np.ndarray, tau: float, interval: float = INTERVAL
+    times: np.ndarray, readings: np.ndarray, shape: Filter, interval: float = INTERVAL
 ) -> tuple[np.ndarray, np.ndarray]:
     """(chronyd's reading times, the value it reads at each): the sensor
-    (tau 0) or the filter's output, every `interval` s."""
-    if tau > 0:
-        times, readings = filtered(times, readings, tau)
+    or the filter's output, every `interval` s."""
+    if not shape.passes:
+        times, readings = filtered(times, readings, shape)
     known = ~np.isnan(readings)
     ticks = ticks_over(times, interval)
     return ticks, sample(times[known], readings[known], ticks)
@@ -121,11 +151,11 @@ def applied(
     times: np.ndarray,
     readings: np.ndarray,
     line: Sequence[float],
-    tau: float,
+    shape: Filter,
     interval: float = INTERVAL,
 ) -> tuple[np.ndarray, np.ndarray]:
     """(chronyd's reading times, the compensation it applies at each)."""
-    ticks, values = chronyd_reads(times, readings, tau, interval)
+    ticks, values = chronyd_reads(times, readings, shape, interval)
     return ticks, compensation(line, values)
 
 
@@ -143,12 +173,12 @@ def minute_compensation(
     times: np.ndarray,
     readings: np.ndarray,
     line: Sequence[float],
-    tau: float,
+    shape: Filter,
     grid: np.ndarray,
     interval: float = INTERVAL,
 ) -> np.ndarray:
     """The mean compensation chronyd applies in each grid minute."""
-    return minute_mean(*applied(times, readings, line, tau, interval), grid)
+    return minute_mean(*applied(times, readings, line, shape, interval), grid)
 
 
 def side_by_side(pieces: Sequence[np.ndarray]) -> np.ndarray:
@@ -163,13 +193,13 @@ def steps(
     times: np.ndarray,
     readings: np.ndarray,
     line: Sequence[float],
-    tau: float,
+    shape: Filter,
     grid: np.ndarray,
     good: np.ndarray,
 ) -> np.ndarray:
     """The compensation's change, ppm, between chronyd's successive readings
     in the grid's good minutes."""
-    ticks, applied_then = applied(times, readings, line, tau)
+    ticks, applied_then = applied(times, readings, line, shape)
     change = np.diff(applied_then)
     minute = ((ticks[1:] - grid[0]) // STEP).astype(int)
     inside = (minute >= 0) & (minute < len(grid))
@@ -202,20 +232,20 @@ def installed(
     grid: np.ndarray,
     pieces: Sequence[tuple[np.ndarray, np.ndarray]],
     line: Sequence[float],
-    taus: Sequence[float],
-) -> tuple[dict[float, np.ndarray], dict[float, Sequence[float]]]:
-    """(each time constant's compensation per grid minute, its line): the
-    one line for all."""
+    shapes: Sequence[Filter],
+) -> tuple[dict[Filter, np.ndarray], dict[Filter, Sequence[float]]]:
+    """(each filter's compensation per grid minute, its line): the one line
+    for all."""
     comps = {
-        tau: side_by_side(
+        shape: side_by_side(
             [
-                minute_compensation(times, readings, line, tau, grid)
+                minute_compensation(times, readings, line, shape, grid)
                 for times, readings in pieces
             ]
         )
-        for tau in taus
+        for shape in shapes
     }
-    return comps, dict.fromkeys(taus, line)
+    return comps, dict.fromkeys(shapes, line)
 
 
 def fitted(
@@ -223,18 +253,18 @@ def fitted(
     frequency: np.ndarray,
     pieces: Sequence[tuple[np.ndarray, np.ndarray]],
     t0: float,
-    taus: Sequence[float],
-) -> tuple[dict[float, np.ndarray], dict[float, Sequence[float]]]:
-    """(each time constant's compensation per grid minute, its line): a
-    quadratic in what chronyd reads, about `t0`, fitted to the crystal for
-    each time constant; each day's compensation from the fit to the others,
+    shapes: Sequence[Filter],
+) -> tuple[dict[Filter, np.ndarray], dict[Filter, Sequence[float]]]:
+    """(each filter's compensation per grid minute, its line): a quadratic
+    in what chronyd reads, about `t0`, fitted to the crystal through each
+    filter; each day's compensation from the fit to the others,
     the line from all.  The fit is linear in chronyd's minute means of d and
     d squared (d the value less `t0`), so the minute's mean compensation is
     exact.  k0 is left 0: chronyd's frequency takes up a constant."""
-    comps: dict[float, np.ndarray] = {}
-    lines: dict[float, Sequence[float]] = {}
-    for tau in taus:
-        reads = [chronyd_reads(times, readings, tau) for times, readings in pieces]
+    comps: dict[Filter, np.ndarray] = {}
+    lines: dict[Filter, Sequence[float]] = {}
+    for shape in shapes:
+        reads = [chronyd_reads(times, readings, shape) for times, readings in pieces]
         moments = [
             side_by_side(
                 [
@@ -251,8 +281,8 @@ def fitted(
         for fit, held in day_folds(grid, good):
             comp[held] = x[held] @ trimmed_fit(x[fit], own[fit])
         _, k1, k2 = trimmed_fit(x[good], own[good])
-        comps[tau] = comp
-        lines[tau] = (t0, 0.0, float(k1), float(k2))
+        comps[shape] = comp
+        lines[shape] = (t0, 0.0, float(k1), float(k2))
     return comps, lines
 
 
@@ -260,11 +290,11 @@ def report(
     grid: np.ndarray,
     frequency: np.ndarray,
     pieces: Sequence[tuple[np.ndarray, np.ndarray]],
-    comps: dict[float, np.ndarray],
-    lines: dict[float, Sequence[float]],
+    comps: dict[Filter, np.ndarray],
+    lines: dict[Filter, Sequence[float]],
 ) -> None:
-    """Scores each time constant's compensation per grid minute, with its
-    line for the steps."""
+    """Scores each filter's compensation per grid minute, with its line for
+    the steps."""
     good = ~np.isnan(frequency)
     for comp in comps.values():
         good &= ~np.isnan(comp)
@@ -291,17 +321,17 @@ def report(
 
     # No compensation: the crystal's own frequency is the error.
     print(f"    off   {scores(np.zeros(len(grid)))}  {0:8.2f}")
-    for tau, comp in comps.items():
+    for shape, comp in comps.items():
         changes = np.concatenate(
             [
-                steps(times, readings, lines[tau], tau, grid, good)
+                steps(times, readings, lines[shape], shape, grid, good)
                 for times, readings in pieces
             ]
         )
         noise = rms(changes) * PPB_PER_PPM
         print(
-            f"  {tau:5.0f}   {scores(comp)}  {noise:8.2f}"
-            f"  {lines[tau][2]:.4e} {lines[tau][3]:.4e}"
+            f"  {shape.label:>5}   {scores(comp)}  {noise:8.2f}"
+            f"  {lines[shape][2]:.4e} {lines[shape][3]:.4e}"
         )
 
 
@@ -331,12 +361,11 @@ def main() -> None:
     exclude(arrays, args.exclude)
     pieces = [read_readings(path, args.sensor) for path in args.runs]
     grid = arrays["at"]
+    shapes = [Filter(tau) for tau in args.taus]
     if args.fit:
-        comps, lines = fitted(
-            grid, arrays["frequency"], pieces, args.line[0], args.taus
-        )
+        comps, lines = fitted(grid, arrays["frequency"], pieces, args.line[0], shapes)
     else:
-        comps, lines = installed(grid, pieces, args.line, args.taus)
+        comps, lines = installed(grid, pieces, args.line, shapes)
     report(grid, arrays["frequency"], pieces, comps, lines)
 
 

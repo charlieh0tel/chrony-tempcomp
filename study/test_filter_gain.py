@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 from filter_gain import (
+    Filter,
     compensation,
     filtered,
     fitted,
@@ -34,7 +35,7 @@ def test_sample_takes_the_last_value_at_or_before():
 def test_the_filter_follows_a_step_by_its_time_constant():
     times = np.arange(0.0, 2000.0)
     readings = np.where(times < 100, 50000.0, 51000.0)
-    ticks, output = filtered(times, readings, 300.0)
+    ticks, output = filtered(times, readings, Filter(300.0))
     after = ticks >= 100
     first = np.flatnonzero(after)[0]
     one_tau = np.flatnonzero(ticks >= ticks[first] + 300)[0]
@@ -46,7 +47,7 @@ def test_the_filter_keeps_its_value_through_unread_readings():
     times = np.arange(0.0, 100.0)
     readings = np.full(100, 50000.0)
     readings[40:60] = np.nan
-    _, output = filtered(times, readings, 300.0)
+    _, output = filtered(times, readings, Filter(300.0))
     assert not np.isnan(output).any()
 
 
@@ -54,7 +55,7 @@ def test_unfiltered_compensation_is_the_reading_every_interval():
     times = np.arange(0.0, 120.0)
     readings = 50000.0 + times
     grid = np.array([0.0, 60.0])
-    comp = minute_compensation(times, readings, LINE, 0.0, grid)
+    comp = minute_compensation(times, readings, LINE, Filter(0.0), grid)
     # Readings at 0, 15, 30 and 45 s, then 60 to 105 s.
     assert comp == pytest.approx([1e-4 * 22.5, 1e-4 * 82.5])
 
@@ -85,13 +86,13 @@ def test_the_right_time_constant_beats_the_unfiltered_sensor():
     times = np.arange(0.0, 6 * 3600.0)
     latent = 55000 + 3000 * np.sin(2 * np.pi * times / 7200)
     readings = np.round((latent + rng.normal(0, 200, len(times))) / 500) * 500
-    ticks, crystal = filtered(times, latent, 300.0, period=1.0)
+    ticks, crystal = filtered(times, latent, Filter(300.0), period=1.0)
     grid = np.arange(0.0, times[-1], STEP)
     minute = ((ticks - grid[0]) // STEP).astype(int)
     own = -np.bincount(minute, compensation(LINE, crystal)) / np.bincount(minute)
 
     def error(tau):
-        comp = minute_compensation(times, readings, LINE, tau, grid)
+        comp = minute_compensation(times, readings, LINE, Filter(tau), grid)
         residual = (own + comp)[10:]
         return np.std(residual)
 
@@ -102,10 +103,12 @@ def test_steps_are_the_changes_between_chronyds_readings():
     times = np.arange(0.0, 120.0)
     readings = 50000.0 + np.where(times < 60, 0.0, 1000.0)
     grid = np.array([0.0, 60.0])
-    change = steps(times, readings, LINE, 0.0, grid, np.array([True, True]))
+    change = steps(times, readings, LINE, Filter(0.0), grid, np.array([True, True]))
     # Readings at 0, 15, ..., 105 s: one step of 0.1 ppm, at 60 s.
     assert sorted(change) == pytest.approx([0.0] * 6 + [0.1])
-    only_first = steps(times, readings, LINE, 0.0, grid, np.array([True, False]))
+    only_first = steps(
+        times, readings, LINE, Filter(0.0), grid, np.array([True, False])
+    )
     assert len(only_first) == 3
 
 
@@ -117,7 +120,7 @@ def test_the_filter_shrinks_the_steps_of_a_jittery_sensor():
     good = np.ones(len(grid), dtype=bool)
 
     def noise(tau):
-        return np.std(steps(times, readings, LINE, tau, grid, good))
+        return np.std(steps(times, readings, LINE, Filter(tau), grid, good))
 
     assert noise(180.0) < 0.1 * noise(0.0)
 
@@ -130,15 +133,17 @@ def test_the_fit_finds_the_line_and_favors_the_right_time_constant():
     times = np.arange(0.0, 3 * 86400.0)
     latent = 55000 + 3000 * np.sin(2 * np.pi * times / 7200)
     readings = np.round((latent + rng.normal(0, 200, len(times))) / 500) * 500
-    ticks, crystal = filtered(times, latent, 300.0, period=1.0)
+    ticks, crystal = filtered(times, latent, Filter(300.0), period=1.0)
     grid = np.arange(0.0, times[-1], STEP)
     minute = ((ticks - grid[0]) // STEP).astype(int)
     frequency = -np.bincount(minute, compensation(LINE, crystal)) / np.bincount(minute)
-    comps, lines = fitted(grid, frequency, [(times, readings)], LINE[0], (0.0, 300.0))
-    assert lines[300.0][2] == pytest.approx(LINE[2], rel=0.02)
+    comps, lines = fitted(
+        grid, frequency, [(times, readings)], LINE[0], (Filter(0.0), Filter(300.0))
+    )
+    assert lines[Filter(300.0)][2] == pytest.approx(LINE[2], rel=0.02)
 
     def error(tau):
-        residual = frequency + comps[tau]
+        residual = frequency + comps[Filter(tau)]
         return np.nanstd(residual)
 
     assert error(300.0) < 0.5 * error(0.0)
