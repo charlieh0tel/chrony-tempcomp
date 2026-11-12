@@ -606,12 +606,23 @@ RMSE, ppm:
 | draws, days | -60 s, 0.030 | 0.031 | | +390 to +480 s, 0.023 |
 | apu-0, days | -360 s, 0.041 | 0.044 | | +360 to +600 s, 0.040, flat |
 
-The sensor comes first on both hosts, under load and in quiet running,
-by tens of seconds to minutes: the heat reaches the die before the
-crystal, which swamps the sensor's own processing (a second or less,
-under a 15 s bin).  So the raw compensation is early, L negative; the
-filter delays it to the crystal, leaving L near zero plus `tempcomp`'s
-interval, under both hosts' Lloop.  Not calling the handlers is right
+The sign is what this shows, and only where the test is sharp: under
+load, no later reading of the sensor fits better, on either host.  The
+heat reaches the die before the crystal, which swamps the sensor's own
+processing (a second or less, under a 15 s bin).  The sizes are not
+delays.  The crystal follows its board through thermal mass, a lag, and
+a fit allowed only a shift takes about the lag's mean delay: draws's
+-15 s under load is a 45 s lag with no shift.  On quiet days the
+temperature moves over hours, so timing hardly matters (apu-0: 0.041
+at -360 s, 0.044 at 0), and the best single lag or shift averages two
+paths: most of the crystal following the sensor fast, a part following
+slower paths (the room, through the case) the sensor barely sees.  A
+blend of a fast and a slow lag fits better than one lag on every set
+(cycles 0.138 to 0.121 on draws, 0.0215 to 0.0096 on apu-0; days 0.023
+to 0.020 and 0.040 to 0.039), its three settings chosen on the same
+data; two lags in series never helps.  So the raw compensation is
+early, L negative; the filter delays it to the crystal, leaving L near
+zero plus `tempcomp`'s interval, under both hosts' Lloop.  Not calling the handlers is right
 for these hosts, and the filter is what makes it so.  A host whose
 crystal warms before its sensor would differ.
 
