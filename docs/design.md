@@ -795,21 +795,21 @@ all of the gain.
 
 A blend of a fast and a slow lag, replayed on the crystal's own
 frequency (`filter_gain.py --fit --choose`, `data/filter-gain-*-blend.txt`),
-each day scored on the setting best on the other two days:
+4 days a host, each day scored on the setting best on the other days:
 
 | | RMS ppm | 1 h us | 4 h us | 24 h us | step ppb |
 |---|---|---|---|---|---|
-| draws, one lag | 0.0258 | 59.7 | 271 | 1996 | 2.0-1.2 |
-| draws, blend | 0.0233 | 49.4 | 232 | 1986 | 5.2 |
-| apu-0, one lag | 0.0402 | 64.6 | 555 | 3481 | 1.1-0.7 |
-| apu-0, blend | 0.0397 | 57.5 | 544 | 3341 | 3.5 |
+| draws, one lag | 0.0280 | 59.5 | 297 | 2089 | 1.9-1.1 |
+| draws, blend | 0.0265 | 51.6 | 272 | 2098 | 4.9 |
+| apu-0, one lag | 0.0373 | 62.1 | 502 | 3002 | 1.1-0.8 |
+| apu-0, blend | 0.0361 | 54.5 | 483 | 2860 | 3.5 |
 
-The blend chosen is the same each day (draws 0.6 x 60 s + 0.4 x
-1200-1800 s; apu-0 0.8 x 60 s + 0.2 x 1800-3600 s), the lag is not
-(300-600 s).  It gains 10-17% on draws, most in 1-4 h of holdover, and
-1-11% on apu-0, and passes 2.5-3 times the lag's step noise into
-chronyd.  On 3 days a host, not yet enough for a second number; to be
-checked on more days.
+The blend chosen is nearly the same each day (draws 0.6 x 60 s + 0.4 x
+1200 s; apu-0 mostly 0.8 x 60 s + 0.2 x 3600 s), the lag is not (300-600
+s).  It gains about 12% in 1 h of holdover on both hosts, 3-5% overall
+and little at 24 h, and passes 2.5-3 times the lag's step noise into
+chronyd.  On 3 days a host it had looked larger (10% overall on
+draws).  Not enough for a second number.
 
 ### Case to make
 

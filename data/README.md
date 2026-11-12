@@ -119,8 +119,10 @@ sensor and spans left out, each whole day predicted from the others:
         1794004511:1794004583 1794010649:1794012844
 
 `filter-gain-draws-blend.txt` and `filter-gain-apu-0-blend.txt` are
-`study/filter_gain.py` on the same recordings, sensor, line and spans as
-`filter-gain-*-all.txt`, with single lags and blends of a fast and a slow
+`study/filter_gain.py` on the same sensor, line and spans as
+`filter-gain-*-all.txt`, its second recordings copied further, to 08:03
+UTC on 2026-11-12 (archived in `2026-11-12/`; no gap or spike after
+11-10), with single lags and blends of a fast and a slow
 lag, each with its fitted line, and each family chosen day by day on the
 other days:
 
