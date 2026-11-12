@@ -511,7 +511,8 @@ Three steps, smallest first; each stands alone.
 1. **A lag on `tempcomp`** ("Proposal for chrony", below).  Phase 1 is
    the evidence.
 2. **chronyd accounting for its own `tempcomp` steps** (below).
-   Open: which is right depends on two delays, not yet measured.
+   Which is right depends on two delays; measured on draws and apu-0,
+   chronyd's present behavior is right for them with the filter.
 3. **A learned line** ("Learning", below), prototyped in this program
    first; upstream only after months of holdover tests, if ever.
 
@@ -590,8 +591,29 @@ near apu-0's.  A thermal path of minutes is past both.  An unannounced
 step costs offset in proportion to its size and Lloop: about 20 us per
 ppm on draws, 5 us per ppm on apu-0; a raw reading's 0.1 ppm, about 2 us
 and 0.5 us; the smoothed compensation's few ppb per interval, a
-thousandth of that.  Next: L, and its sign, from the crystal's own
-frequency.
+thousandth of that.
+
+L's sign, from the crystal's own frequency (PPS against the raw clock,
+no chronyd): the frequency's curve on the sensor shifted both ways in
+time, held out (`study/sensor_shift.py`, `data/sensor-shift-*.txt`).  A
+positive shift would mean the sensor behind the crystal.  Held-out
+RMSE, ppm:
+
+| | best pure shift | at 0 | at +1 min | best lag and shift: delay |
+|---|---|---|---|---|
+| draws, load cycles | -15 s, 0.150 | 0.174 | 0.321 | +45 s, 0.133 |
+| apu-0, load cycles | -90 s, 0.034 | 0.039 | 0.046 | +270 s, 0.010 |
+| draws, days | -60 s, 0.030 | 0.031 | | +390 to +480 s, 0.023 |
+| apu-0, days | -360 s, 0.041 | 0.044 | | +360 to +600 s, 0.040, flat |
+
+The sensor comes first on both hosts, under load and in quiet running,
+by tens of seconds to minutes: the heat reaches the die before the
+crystal, which swamps the sensor's own processing (a second or less,
+under a 15 s bin).  So the raw compensation is early, L negative; the
+filter delays it to the crystal, leaving L near zero plus `tempcomp`'s
+interval, under both hosts' Lloop.  Not calling the handlers is right
+for these hosts, and the filter is what makes it so.  A host whose
+crystal warms before its sensor would differ.
 
 ### Learning
 
@@ -793,6 +815,7 @@ requests.
 - A simulation of chronyd's loop for testing: the real chronyd under a
   simulated clock, or a model of it.
 - Several sensors: which hosts to record, and for how long.
-- Measurements: why draws fits about 10 min in quiet running and 0.75 min
-  under load, from days of raw frequency; the same check on another host
-  (chronos, once it is ready).
+- Measurements: why draws's crystal is about 7-8 min behind its sensor in
+  quiet running and under 1 min under load (raw frequency, free of
+  chronyd: `sensor-shift-draws-days.txt`, `-cycles.txt`); the same check
+  on another host (chronos, once it is ready).

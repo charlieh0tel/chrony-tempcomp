@@ -111,4 +111,10 @@ the compensation steady either side, as test 2's switches at midnight
 are, and reports how long the loop took to take each in, the offset it
 cost, and the samples its regression keeps.
 
+`sensor_shift.py` asks which comes first, the sensor or the crystal:
+the crystal's frequency against its curve on the sensor shifted both
+ways in time, held out by load cycle (`--cycles`) or by whole day
+(recordings), and through each lag the best shift on top and the delay
+of the two together.
+
 Tests: `uv run pytest`.

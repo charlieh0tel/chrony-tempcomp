@@ -102,3 +102,18 @@ logs, from 2026-10-11 on draws and 11-07 on apu-0:
 
     chronyd_step.py 2026-11-12/draws/chrony --source GPS
     chronyd_step.py 2026-11-12/apu-0/chrony --source PPS
+
+`sensor-shift-draws-cycles.txt` and `sensor-shift-apu-0-cycles.txt` are
+`study/sensor_shift.py --cycles` on `draws-cycles.npz` and
+`apu-0-cycles.npz`, each load cycle predicted from the others.
+`sensor-shift-draws-days.txt` and `sensor-shift-apu-0-days.txt` are the
+same on the recordings behind `filter-gain-*-all.txt`, with the same
+sensor and spans left out, each whole day predicted from the others:
+
+    sensor_shift.py pps-20261106T155224.csv pps-20261108T181345.csv \
+        --sensor /sys/class/hwmon/hwmon0/temp1_input \
+        --exclude 1793982144:1793987547 1794000510:1794010421
+    sensor_shift.py pps-20261106T155019.csv pps-20261108T231921.csv \
+        --sensor /sys/class/hwmon/hwmon0/temp1_input \
+        --exclude 1793982019:1793987419 1794000506:1794010407 \
+        1794004511:1794004583 1794010649:1794012844
