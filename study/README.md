@@ -105,4 +105,10 @@ The design's result is `pps_step.py --bin 15` on
 [`data/draws-pps.csv`](../data/draws-pps.csv), and for the comparison
 `--bin 60 --chronyd ../data/draws-pps-chronyd.npz`.
 
+`chronyd_step.py` reads chronyd's own logs (`tempcomp`, `tracking`,
+`statistics`, plain, gzipped or xz'd) for steps in the compensation with
+the compensation steady either side, as test 2's switches at midnight
+are, and reports how long the loop took to take each in, the offset it
+cost, and the samples its regression keeps.
+
 Tests: `uv run pytest`.

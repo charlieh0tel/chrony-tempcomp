@@ -93,3 +93,12 @@ others; only whole days are held out, three on each host:
 
 `smoothing-off.txt` is `study/smoothing.py --compensation off draws.npz`,
 its 5 whole days before the `tempcomp` line came on.
+
+`chronyd-step-draws.txt` and `chronyd-step-apu-0.txt` are
+`study/chronyd_step.py` on each host's chronyd logs as copied at 00:55
+UTC on 2026-11-12 (archived in `2026-11-12/`, `chrony/`): test 2's three
+switches at midnight UTC, and the regression's samples over the whole
+logs, from 2026-10-11 on draws and 11-07 on apu-0:
+
+    chronyd_step.py 2026-11-12/draws/chrony --source GPS
+    chronyd_step.py 2026-11-12/apu-0/chrony --source PPS

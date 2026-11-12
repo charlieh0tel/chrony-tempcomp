@@ -565,8 +565,33 @@ and any compensation earlier than the temperature changes helps.
 chronyd does not know where it sits between the two, so neither fixed
 choice suits both; a good reference shortens Lloop and moves it toward
 the second.  This is a real question for upstream, not simply a bug.
-Next: measure Lloop (chronyd's response to a known frequency step,
-from its logs or under simulation) and L for a host, before deciding.
+
+Lloop, measured: test 2's switch at midnight UTC steps the compensation
+with no change in the crystal, a known step chronyd is not told about.
+From chronyd's own logs (`study/chronyd_step.py`, `data/chronyd-step-*.txt`),
+three steps on each host:
+
+| | update | step | frequency moved | offset peak |
+|---|---|---|---|---|
+| draws, PPS poll 4 | 16 s | -886, +1074, -966 ppb | 90-103 s after | 19-26 us |
+| apu-0, PPS poll 2 | 4 s | -293, +468, -346 ppb | 26-32 s after | 1.7-2.6 us |
+
+The frequency moves by the step each time, all at once about six
+updates later: the runs test dropping the old samples, not the
+regression drifting over.  A change too slow to trip the runs test is
+followed about half the regression's window behind: median 11 samples
+on draws (10-90%: 7-25), about 3 min, so about 90 s; 7 on apu-0 (7-12),
+about 30 s, so about 15 s.  So Lloop is about 15-30 s on apu-0 and
+1.5-3 min on draws, set mostly by the PPS's poll.
+
+A closely coupled sensor's L, its processing, `tempcomp`'s 15 s interval
+and the filter's 5 s period, is about 10-20 s: well under draws's Lloop,
+near apu-0's.  A thermal path of minutes is past both.  An unannounced
+step costs offset in proportion to its size and Lloop: about 20 us per
+ppm on draws, 5 us per ppm on apu-0; a raw reading's 0.1 ppm, about 2 us
+and 0.5 us; the smoothed compensation's few ppb per interval, a
+thousandth of that.  Next: L, and its sign, from the crystal's own
+frequency.
 
 ### Learning
 
