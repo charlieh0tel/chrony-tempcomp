@@ -92,7 +92,11 @@ chronyd's readings to the next, a frequency step its loop chases.  A
 first row scores no compensation at all.  With
 `--fit`, each time constant gets its own line, fitted to the crystal
 through that filter, and each day is scored on the line fitted to the
-other days.
+other days.  `--blend-fast`, `--blend-slow` and `--blend-shares` add
+filters with a share through a second, slower lag; `--choose` adds a row
+per family (single lags, blends) scoring each day on the family's filter
+best on the other days, so the family with more settings gains nothing
+from choosing on the scored day.
 
 `smoothing.py` asks what a fitted lag is, on a host's one-minute
 buckets: a causal lag against the same smoothing with no delay and a

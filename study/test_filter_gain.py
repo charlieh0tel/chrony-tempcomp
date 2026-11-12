@@ -5,6 +5,8 @@ import numpy as np
 import pytest
 from filter_gain import (
     Filter,
+    blends,
+    choose,
     compensation,
     filtered,
     fitted,
@@ -147,3 +149,48 @@ def test_the_fit_finds_the_line_and_favors_the_right_time_constant():
         return np.nanstd(residual)
 
     assert error(300.0) < 0.5 * error(0.0)
+
+
+def test_a_blend_follows_a_step_by_both_its_lags():
+    times = np.arange(0.0, 4000.0)
+    readings = np.where(times < 100, 50000.0, 51000.0)
+    ticks, output = filtered(times, readings, Filter(60.0, 1200.0, 0.4))
+    at = np.flatnonzero(ticks >= 100 + 600)[0]
+    elapsed = ticks[at] - ticks[np.flatnonzero(ticks >= 100)[0]]
+    fast = 1 - np.exp(-elapsed / 60.0)
+    slow = 1 - np.exp(-elapsed / 1200.0)
+    assert output[at] == pytest.approx(50000 + 1000 * (0.6 * fast + 0.4 * slow), abs=5)
+
+
+def test_a_single_lag_is_unchanged_by_the_blend_machinery():
+    times = np.arange(0.0, 2000.0)
+    readings = np.where(times < 100, 50000.0, 51000.0)
+    _, single = filtered(times, readings, Filter(300.0))
+    _, blend = filtered(times, readings, Filter(300.0, 900.0, 0.0))
+    assert single == pytest.approx(blend)
+
+
+def test_blends_combine_each_setting_with_the_slow_lag_longer():
+    found = blends([60.0, 600.0], [600.0, 1200.0], [0.4])
+    assert found == [
+        Filter(60.0, 600.0, 0.4),
+        Filter(60.0, 1200.0, 0.4),
+        Filter(600.0, 1200.0, 0.4),
+    ]
+
+
+def test_choose_takes_each_days_filter_from_the_other_days():
+    """Filter a is best on days 0 and 1, b on day 2: day 2 still gets a,
+    chosen on days 0 and 1; days 0 and 1 get a too."""
+    day = np.repeat([0, 1, 2], 10)
+    good = np.ones(30, dtype=bool)
+    frequency = np.zeros(30)
+    a, b = Filter(60.0), Filter(300.0)
+    noise = np.tile([1.0, -1.0], 15)
+    comps = {
+        a: np.where(day < 2, 0.01, 0.2) * noise,
+        b: np.where(day < 2, 0.3, 0.001) * noise,
+    }
+    comp, chosen = choose(frequency, comps, [a, b], good, day, [0, 1, 2])
+    assert chosen == [a, a, a]
+    assert comp == pytest.approx(comps[a])

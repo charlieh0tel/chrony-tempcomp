@@ -29,11 +29,19 @@ With `--fit`, each time constant gets its own line, fitted to the crystal
 through that filter (about `--line`'s T0), and each day is scored on the
 line fitted to the other days: a fair test of the lag, where the installed
 line, fitted to the unfiltered sensor, favors no filter.
+
+`--blend-fast`, `--blend-slow` and `--blend-shares` add filters with a share
+of the output through a second, slower lag: each combination.  With
+`--choose`, a row per family (single lags, blends) scores each day on the
+family's filter that did best on the other days, so a family of more
+settings gains nothing from choosing on the scored day; its holdover
+crosses midnight where the filter changes.
 """
 
 from __future__ import annotations
 
 import argparse
+import itertools
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -45,6 +53,7 @@ from room_days import (
     SECONDS_PER_DAY,
     STEP,
     day_folds,
+    nested,
     rms,
     trimmed_fit,
 )
@@ -286,23 +295,58 @@ def fitted(
     return comps, lines
 
 
+def blends(
+    fast: Sequence[float], slow: Sequence[float], shares: Sequence[float]
+) -> list[Filter]:
+    """A blend for each combination, the slow lag longer than the fast."""
+    return [
+        Filter(f, s, share)
+        for f, s, share in itertools.product(fast, slow, shares)
+        if s > f
+    ]
+
+
+def choose(
+    frequency: np.ndarray,
+    comps: dict[Filter, np.ndarray],
+    family: Sequence[Filter],
+    good: np.ndarray,
+    day: np.ndarray,
+    days: Sequence[int],
+) -> tuple[np.ndarray, list[Filter]]:
+    """(the compensation, each day's filter): each day's from the filter of
+    `family` with the least error on the other days."""
+    table = {}
+    for shape in family:
+        error = np.where(good, frequency + comps[shape], np.nan)
+        error -= np.nanmedian(error)
+        table[shape] = [error[good & (day == d)] for d in days]
+    _, chosen = nested(table)
+    comp = np.full(len(frequency), np.nan)
+    for d, shape in zip(days, chosen, strict=True):
+        comp[day == d] = comps[shape][day == d]
+    return comp, chosen
+
+
 def report(
     grid: np.ndarray,
     frequency: np.ndarray,
     pieces: Sequence[tuple[np.ndarray, np.ndarray]],
     comps: dict[Filter, np.ndarray],
     lines: dict[Filter, Sequence[float]],
+    families: dict[str, Sequence[Filter]] | None = None,
 ) -> None:
     """Scores each filter's compensation per grid minute, with its line for
-    the steps."""
+    the steps, and each of `families` chosen day by day."""
     good = ~np.isnan(frequency)
     for comp in comps.values():
         good &= ~np.isnan(comp)
     day = ((grid - grid[0]) // SECONDS_PER_DAY).astype(int)
     days = list(np.unique(day[good]))
+    width = max([5] + [len(shape.label) for shape in comps])
     print(f"{good.sum() / 1440:.2f} days of minutes, {len(days)} days started")
     print(
-        "  tau s  RMS ppm  by day ppm"
+        f"  {'tau s' if width == 5 else 'filter':>{width}}  RMS ppm  by day ppm"
         + " " * max(0, 7 * len(days) - 10)
         + "".join(f"  {h:2d} h us" for h in HOLDOVER_HOURS)
         + "  step ppb  k1 ppm/unit k2 ppm/unit^2"
@@ -320,7 +364,7 @@ def report(
         return f"{rms(error[good]):.4f}   {by_day}{holdover}"
 
     # No compensation: the crystal's own frequency is the error.
-    print(f"    off   {scores(np.zeros(len(grid)))}  {0:8.2f}")
+    print(f"  {'off':>{width}}   {scores(np.zeros(len(grid)))}  {0:8.2f}")
     for shape, comp in comps.items():
         changes = np.concatenate(
             [
@@ -330,9 +374,13 @@ def report(
         )
         noise = rms(changes) * PPB_PER_PPM
         print(
-            f"  {shape.label:>5}   {scores(comp)}  {noise:8.2f}"
+            f"  {shape.label:>{width}}   {scores(comp)}  {noise:8.2f}"
             f"  {lines[shape][2]:.4e} {lines[shape][3]:.4e}"
         )
+    for name, family in (families or {}).items():
+        comp, chosen = choose(frequency, comps, family, good, day, days)
+        print(f"  {name:>{width}}   {scores(comp)}")
+        print(f"  {'':>{width}}   by day: " + ", ".join(s.label for s in chosen))
 
 
 def read_readings(path: str, sensor: str) -> tuple[np.ndarray, np.ndarray]:
@@ -349,6 +397,14 @@ def main() -> None:
         "--line", nargs=4, type=float, required=True, metavar=("T0", "K0", "K1", "K2")
     )
     parser.add_argument("--taus", nargs="+", type=float, default=TAUS)
+    parser.add_argument("--blend-fast", nargs="*", type=float, default=[])
+    parser.add_argument("--blend-slow", nargs="*", type=float, default=[])
+    parser.add_argument("--blend-shares", nargs="*", type=float, default=[])
+    parser.add_argument(
+        "--choose",
+        action="store_true",
+        help="add each family chosen for each day on the other days",
+    )
     parser.add_argument("--exclude", nargs="*", type=span, default=[], help="FROM:TO")
     parser.add_argument(
         "--fit",
@@ -361,12 +417,19 @@ def main() -> None:
     exclude(arrays, args.exclude)
     pieces = [read_readings(path, args.sensor) for path in args.runs]
     grid = arrays["at"]
-    shapes = [Filter(tau) for tau in args.taus]
+    lags = [Filter(tau) for tau in args.taus]
+    blended = blends(args.blend_fast, args.blend_slow, args.blend_shares)
+    shapes = lags + blended
+    families: dict[str, Sequence[Filter]] | None = None
+    if args.choose:
+        families = {"lag*": lags}
+        if blended:
+            families["blend*"] = blended
     if args.fit:
         comps, lines = fitted(grid, arrays["frequency"], pieces, args.line[0], shapes)
     else:
         comps, lines = installed(grid, pieces, args.line, shapes)
-    report(grid, arrays["frequency"], pieces, comps, lines)
+    report(grid, arrays["frequency"], pieces, comps, lines, families)
 
 
 if __name__ == "__main__":
