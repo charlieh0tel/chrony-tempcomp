@@ -154,6 +154,17 @@ next.
       RMS of what is left, day by day, and the time error it would build
       over 1, 4 and 24 h of holdover.  Free of chronyd; tries other `tau`
       and two speeds without touching the host.
+      To 01:56 UTC on 2026-11-16 (`data/filter-gain-*-1116.txt`; 8 whole
+      days on draws, 6 on apu-0, whose recorder its disk guard stopped
+      from 03:17 UTC on 11-13 to 01:36 on 11-14, a UPS's log flood having
+      filled the disk): draws at 300 s 0.0259 against 0.0387 unfiltered,
+      holdover 46 against 56 us after 1 h, 268 against 340 after 4 h, 1.9
+      against 2.5 ms after 24 h; apu-0 at 180 s 0.0349 against 0.0400, 59
+      against 61 us, 465 against 474, 2.8 against 3.1 ms.  No compensation
+      leaves 0.24 to 0.30 ms after 1 h, 3.1 to 3.7 after 4 h, 33 to 38
+      after 24 h: 4 to 5 times, 8 to 11 times and 14 to 17 times the
+      filtered line's.  apu-0's fitted k2 is now -9.1e-9 against the
+      installed -6.25e-9.
    2. On the host: chronyd's frequency, less the compensation, wanders
       less when the compensation fits.  Its spread over 15 min to 4 h
       (`tracking.log`, `tempcomp.log`), the filter at `TAU` 300 and
@@ -176,6 +187,15 @@ next.
       both stayed on their reference, and both recorders kept writing.  Each switch is a step in the
       compensation (as much as the line gives at the day's temperature),
       which chronyd must absorb; judge from an hour after it.
+      Six whole days to 2026-11-16, each from an hour after its switch
+      (`tracking.log`): off on 11-10, 12 and 14, filtered on 11-11, 13
+      and 15.  draws's frequency step SD 2.2, 3.3, 2.7 ppb off against 1.9,
+      1.7, 2.7 filtered, median offset 56 to 63 ns against 56 to 74: the
+      two overlap.  apu-0's 0.48 to 0.56 ppb against 0.57 to 0.66, median
+      offset 3.1 to 3.7 ns against 3.8 to 4.6: each filtered day a little
+      noisier than the off days either side, the compensation's own motion
+      being a change chronyd chases.  While locked, compensation is worth
+      little either way; holdover decides.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.

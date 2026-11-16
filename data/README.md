@@ -130,3 +130,12 @@ other days:
         --taus 0 60 120 180 300 450 600 900 1200 1800 \
         --blend-fast 15 30 60 120 --blend-slow 600 1200 1800 3600 \
         --blend-shares 0.2 0.4 0.6 0.8
+
+`filter-gain-draws-1116.txt` and `filter-gain-apu-0-1116.txt` are the
+same with `--fit --taus 0 300 450` (apu-0's 180, its installed time
+constant, from a second run of `--taus 180`) on the recordings as copied
+at 01:56 UTC on 2026-11-16 (archived in `2026-11-16/`): draws's second
+recording to then, also leaving out `1794793860:1794797770`, the load of
+compressing it on draws and an hour after; apu-0's second recording,
+stopped at 03:17 UTC on 11-13 by its disk guard, and a third from 01:36
+UTC on 11-14.  Whole days held out: 8 on draws, 6 on apu-0.
