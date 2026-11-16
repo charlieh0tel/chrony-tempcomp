@@ -139,3 +139,12 @@ recording to then, also leaving out `1794793860:1794797770`, the load of
 compressing it on draws and an hour after; apu-0's second recording,
 stopped at 03:17 UTC on 11-13 by its disk guard, and a third from 01:36
 UTC on 11-14.  Whole days held out: 8 on draws, 6 on apu-0.
+
+`filter-gain-apu-0-refit.txt` is apu-0's refit, on its two recordings
+since its reboot on 11-08 only (`pps-20261108T231921.csv`,
+`pps-20261114T013641.csv`, as above, no span left out), at its `TAU` of
+180: the installed line, then the line `--fit` gives, each day scored on
+the fit to the others, both on the same minutes.  `filter_gain.py`'s
+`installed` and `fitted` put in one `report`; `--fit --taus 180` alone
+gives the second row and its line.  Its line, T0 kept, is
+`tools/hosts/apu-0/tempcomp-filter.conf`'s from 0.1.6.

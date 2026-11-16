@@ -164,7 +164,17 @@ next.
       leaves 0.24 to 0.30 ms after 1 h, 3.1 to 3.7 after 4 h, 33 to 38
       after 24 h: 4 to 5 times, 8 to 11 times and 14 to 17 times the
       filtered line's.  apu-0's fitted k2 is now -9.1e-9 against the
-      installed -6.25e-9.
+      installed -6.25e-9.  Its one day before the reboot fits the
+      installed line better (0.026 against 0.051 ppm), every day since
+      the refit: so refitted on the days since the reboot alone
+      (`data/filter-gain-apu-0-refit.txt`), each held out, k1 1.250e-4 and
+      k2 -1.081e-8 about the same T0 leave 0.0284 ppm against the
+      installed line's 0.0532 on the same minutes, holdover 60 against 59
+      us after 1 h, 379 against 543 after 4 h, 2.6 against 4.4 ms after
+      24 h.  In `tempcomp-filter-apu-0` 0.1.6, to install on an off day so
+      the next filtered day is whole on the new line.  What moved at the
+      reboot is unknown; the SSD's replacement, a reboot, may move it
+      again, so refit after it.
    2. On the host: chronyd's frequency, less the compensation, wanders
       less when the compensation fits.  Its spread over 15 min to 4 h
       (`tracking.log`, `tempcomp.log`), the filter at `TAU` 300 and
