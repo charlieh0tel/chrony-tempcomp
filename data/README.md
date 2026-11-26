@@ -148,3 +148,25 @@ the fit to the others, both on the same minutes.  `filter_gain.py`'s
 `installed` and `fitted` put in one `report`; `--fit --taus 180` alone
 gives the second row and its line.  Its line, T0 kept, is
 `tools/hosts/apu-0/tempcomp-filter.conf`'s from 0.1.6.
+
+`*-1126.txt` take in the recordings and chronyd's logs as copied at 23:10
+UTC on 2026-11-26 (archived in `2026-11-26/`).  draws's second recording
+runs to 01:38 UTC on 11-24, its card's replacement; apu-0's third to
+00:11 UTC on 11-22, its SSD's.  draws's GPS receiver lost its fix (or
+its feed) from 01:10 UTC on 11-16 to 01:38 on 11-21: chronyd ran on NTP
+from chronos, and the PPS edges, free-running, drifted 19 ms against it,
+so the span to an hour after its return is left out too, as
+`1794793860:1795228800`, which takes in the compression's load above.
+apu-0's chronyd logs from 02:00 UTC on 11-16 to 08:53 on 11-22 rotated
+away before the copy.
+
+- `filter-gain-draws-1126.txt`: `filter_gain.py --fit --taus 0 180 300 450`
+  on draws's two recordings, the spans above left out: 10 whole days.
+- `filter-gain-apu-0-1126.txt`: the same on apu-0's three: 12 days.
+- `filter-gain-apu-0-refit-1126.txt`: as `filter-gain-apu-0-refit.txt`,
+  on apu-0's recordings from its 11-08 reboot to the SSD's replacement:
+  12 days.  Its line, T0 kept, is apu-0's from 0.1.7.
+- `chronyd-step-draws-1126.txt`: `chronyd_step.py --source GPS` on
+  draws's logs; the switches while it was on NTP are skipped.
+  `chronyd-step-apu-0-1126.txt`: the same on apu-0's, in two parts, the
+  logs in `2026-11-16/` then those in `2026-11-26/`.

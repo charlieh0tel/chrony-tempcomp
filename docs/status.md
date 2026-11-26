@@ -171,10 +171,27 @@ next.
       k2 -1.081e-8 about the same T0 leave 0.0284 ppm against the
       installed line's 0.0532 on the same minutes, holdover 60 against 59
       us after 1 h, 379 against 543 after 4 h, 2.6 against 4.4 ms after
-      24 h.  In `tempcomp-filter-apu-0` 0.1.6, to install on an off day so
-      the next filtered day is whole on the new line.  What moved at the
-      reboot is unknown; the SSD's replacement, a reboot, may move it
-      again, so refit after it.
+      24 h.  0.1.6 carried it and was never installed.  On the 12 days to
+      the SSD's replacement on 11-22 (`data/filter-gain-apu-0-refit-1126.txt`)
+      the refit, k1 1.288e-4 and k2 -1.046e-8, leaves 0.0383 ppm against
+      0.0713, holdover 55 against 55 us after 1 h, 364 against 511 after
+      4 h, 2.7 against 4.6 ms after 24 h; 0.1.7 carries it.  The SSD's
+      replacement did not move the curve: on the filtered days after it
+      (11-23, 11-25) chronyd's own frequency less the compensation sits
+      0.019 and 0.021 ppm about the refit, against 0.058 and 0.015 about
+      the installed line, as on the days before (0.026 and 0.026 against
+      0.052 and 0.014).  What moved at the 11-08 reboot is unknown.
+      To 11-24, draws's 10 whole days (`data/filter-gain-draws-1126.txt`,
+      its 5 days without a GPS fix left out) at 300 s leave 0.0280 ppm
+      against 0.0404 unfiltered, holdover 50 against 62 us after 1 h,
+      279 against 347 after 4 h, 2.0 against 2.5 ms after 24 h; its
+      fitted line is within 1% of the installed one, and the card's
+      replacement moved nothing either (11-25: 0.017 about a refit,
+      0.018 about the installed line).  apu-0's 12 days, its line fitted
+      for each `tau` on all of them (`data/filter-gain-apu-0-1126.txt`):
+      0.0375 at 180 s against 0.0424, 56 against 58 us, 401 against 415,
+      2.5 against 2.7 ms.  No compensation leaves 0.26 to 0.27 ms after
+      1 h, 3.1 ms after 4 h, 32 to 38 ms after 24 h.
    2. On the host: chronyd's frequency, less the compensation, wanders
       less when the compensation fits.  Its spread over 15 min to 4 h
       (`tracking.log`, `tempcomp.log`), the filter at `TAU` 300 and
@@ -206,6 +223,16 @@ next.
       noisier than the off days either side, the compensation's own motion
       being a change chronyd chases.  While locked, compensation is worth
       little either way; holdover decides.
+      Test 2 ran to 11-26: every off day wrote T0 all day and every
+      filtered day never did, on both hosts.  draws, on GPS and clear of
+      its outage and reboot: off days 2.2 to 6.4 ppb step SD (median 3.2),
+      filtered 1.7 to 3.6 (median 2.3); median offset 56 to 75 ns against
+      56 to 89.  apu-0: 0.48 to 0.70 ppb against 0.54 to 0.66, median
+      offset 2.4 to 3.7 ns against 3.5 to 4.6; the same verdict.
+      chronyd took each switch in within 68 to 114 s on draws (10
+      switches, 12 to 30 us of offset), 24 to 32 s on apu-0 (6, 0.8 to
+      2.3 us) (`data/chronyd-step-*-1126.txt`).  0.1.7 ends test 2:
+      `ALTERNATE_TAU` is gone from both host packages.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
