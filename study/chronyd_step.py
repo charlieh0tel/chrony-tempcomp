@@ -22,6 +22,7 @@ import argparse
 import datetime
 import gzip
 import lzma
+import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import IO
@@ -100,16 +101,21 @@ def steps(compensation: np.ndarray, minimum: float) -> list[tuple[float, float]]
     ]
 
 
-def response(tracking: np.ndarray, at: float) -> dict[str, float]:
+def response(tracking: np.ndarray, at: float) -> dict[str, float] | None:
     """How the frequency moved after a step at `at`: by how much, when it
     first passed each of FRACTIONS of that (seconds after the step), and
-    the largest offset meanwhile (seconds)."""
+    the largest offset meanwhile (seconds).  None when the source has no
+    rows before the step or none settled after it, as when chronyd was on
+    another source."""
     t, frequency, offset = tracking.T
     before = frequency[(t >= at - BEFORE) & (t < at)]
     span = (t >= at) & (t < at + AFTER)
     after_t, after = t[span], frequency[span]
+    settled = after[after_t >= at + AFTER - SETTLED]
+    if not len(before) or not len(settled):
+        return None
     start = float(np.median(before))
-    end = float(np.median(after[after_t >= at + AFTER - SETTLED]))
+    end = float(np.median(settled))
     share = (after - start) / (end - start)
     result = {"moved": end - start, "offset": float(np.max(np.abs(offset[span])))}
     for fraction in FRACTIONS:
@@ -163,6 +169,12 @@ def main() -> None:
     for at, size in steps(compensation, args.min_step / PPB_PER_PPM):
         r = response(tracking, at)
         when = datetime.datetime.fromtimestamp(at, datetime.UTC)
+        if r is None:
+            print(
+                f"{when:%Y-%m-%d %H:%M:%S}: not on {args.source}, skipped",
+                file=sys.stderr,
+            )
+            continue
         print(
             f"{when:%Y-%m-%d %H:%M:%S}  {size * PPB_PER_PPM:+8.0f}  "
             f"{r['moved'] * PPB_PER_PPM:+9.0f}  "

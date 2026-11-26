@@ -6,6 +6,7 @@ import gzip
 import lzma
 
 import chronyd_step
+import numpy as np
 import pytest
 
 START = datetime.datetime(2026, 11, 10, 23, 50, tzinfo=datetime.UTC)
@@ -101,3 +102,10 @@ def test_raw_readings_flipping_are_not_steps():
     flips = 0.5 + 0.123 * (t // 60 % 2)
     compensation = chronyd_step.np.column_stack([t, flips])
     assert chronyd_step.steps(compensation, 0.1) == []
+
+
+def test_a_step_with_no_rows_from_the_source_after_it_is_skipped():
+    at = 1000.0
+    t = np.arange(at - chronyd_step.BEFORE, at, 16.0)
+    tracking = np.column_stack([t, np.zeros(len(t)), np.zeros(len(t))])
+    assert chronyd_step.response(tracking, at) is None
