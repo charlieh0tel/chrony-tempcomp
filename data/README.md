@@ -152,8 +152,8 @@ gives the second row and its line.  Its line, T0 kept, is
 `*-1126.txt` take in the recordings and chronyd's logs as copied at 23:10
 UTC on 2026-11-26 (archived in `2026-11-26/`).  draws's second recording
 runs to 01:38 UTC on 11-24, its card's replacement; apu-0's third to
-00:11 UTC on 11-22, its SSD's.  draws's GPS receiver lost its fix (or
-its feed) from 01:10 UTC on 11-16 to 01:38 on 11-21: chronyd ran on NTP
+00:11 UTC on 11-22, its SSD's.  draws's GPS receiver lost its fix (its
+antenna's feed was down) from 01:10 UTC on 11-16 to 01:38 on 11-21: chronyd ran on NTP
 from chronos, and the PPS edges, free-running, drifted 19 ms against it,
 so the span to an hour after its return is left out too, as
 `1794793860:1795228800`, which takes in the compression's load above.

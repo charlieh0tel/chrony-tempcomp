@@ -182,7 +182,8 @@ next.
       the installed line, as on the days before (0.026 and 0.026 against
       0.052 and 0.014).  What moved at the 11-08 reboot is unknown.
       To 11-24, draws's 10 whole days (`data/filter-gain-draws-1126.txt`,
-      its 5 days without a GPS fix left out) at 300 s leave 0.0280 ppm
+      its 5 days without a GPS fix, its antenna's feed
+      down, left out) at 300 s leave 0.0280 ppm
       against 0.0404 unfiltered, holdover 50 against 62 us after 1 h,
       279 against 347 after 4 h, 2.0 against 2.5 ms after 24 h; its
       fitted line is within 1% of the installed one, and the card's
