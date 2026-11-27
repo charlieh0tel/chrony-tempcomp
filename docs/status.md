@@ -237,6 +237,25 @@ next.
    3. Holdover: the reference cut for a few hours, filter on and off, the
       time error against the recorder's PPS.  The before-and-after
       numbers, and the chrony-dev question.
+      draws's 5 days on NTP (11-16 to 11-21) already hold over between
+      polls, and test 2 alternated through them (`tracking.log`, updates
+      from chronos): filtered days polled at a median 1029 and 1031 s,
+      off days at 259 and 260 s, and the median offset after a gap over
+      600 s was 6.4 and 6.3 us filtered against 22 and 34 us off.  That is
+      filtered against no compensation, not against the raw sensor: the
+      raw margin is still the replay's alone.
+      The case for upstream (a `tau` on both forms of `tempcomp`, about
+      120 s safe as a default on these data, as each fitted k1 and k2
+      move under 1% between raw and 300 s) is set out, not sent, at
+      https://claude.ai/artifact/VRX4msZuJ11ozU7vn9KYM2.  In chrony's git
+      (4.9-17-g372462c), `read_timeout()` in `tempcomp.c` reads, computes
+      and applies with no smoothing: the filter is a static and about 10
+      lines there.  `parse_tempcomp()` in `conf.c` tells the forms apart
+      by argument count (3 or 6), so a trailing option reworks it, with
+      `CNF_GetTempComp()` and chrony.conf(5): about 50 to 70 lines.  Open
+      for upstream: whether `tempcomp.log` records the raw or the
+      filtered temperature, and that a reading failing the 10 ppm sanity
+      check stays out of the filter.
    chronyd itself steadied when it began reading the filter
    (`tracking.log`, 2 h ending 10 min before chronyd's restart and 2 h
    starting 30 min after the switch, clear of the install and the
@@ -247,7 +266,12 @@ next.
    filtered on both sides, spans taken the same way: 2.0 to 1.3 ppb, 183
    to 155 ns, about what spans a few hours apart differ by unchanged.
    Each jitter of an unfiltered reading is a frequency step chronyd
-   chases (0.013 ppm per 0.1 degree on apu-0); the replay, scoring the fit
+   chases (0.016 to 0.028 ppm per 0.1 degree on apu-0, its line's slope
+   at its 5th to 95th percentile temperatures, 56.2 to 61.7 degrees, below
+   T0; 0.057 to 0.121 per 0.538-degree step on draws).  apu-0's sensor is
+   fine but noisy: 77% of its readings 15 s apart differ, by 0.1 to 0.4
+   degrees (RMS 0.23), against draws's 48%, almost all one step; 0.23
+   degrees at apu-0's median slope is 52 ppb, its raw step noise 48.  The replay, scoring the fit
    to the crystal each minute, does not see that; its step column does:
    the compensation's RMS change between chronyd's readings, 93 ppb
    unfiltered against 2.5 at 300 s on draws, 34 against 1.5 at 180 s on
