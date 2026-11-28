@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -e
+
+if [ -d /run/systemd/system ]; then
+  systemctl disable --now tempcomp-holdover.timer
+  # Give the sources back, whatever the clock says.
+  if [ -d /run/chrony ]; then
+    STATE_DIRECTORY=/run/tempcomp-holdover /usr/sbin/tempcomp-holdover restore || true
+  fi
+fi

@@ -1,0 +1,12 @@
+Package: tempcomp-holdover
+Version: @VERSION@
+Architecture: all
+Maintainer: Christopher Hoover <ch@murgatroid.com>
+Depends: bash (>= 5.0), chrony, systemd
+Section: admin
+Priority: optional
+Homepage: https://github.com/charlieh0tel/chrony-tempcomp
+Description: holdover test for chronyd's tempcomp
+ On a fixed cycle between two times, makes every chronyd source noselect
+ for part of each cycle, so the clock holds over on its frequency and
+ tempcomp, and gives the sources back after.  Removing it gives them back.

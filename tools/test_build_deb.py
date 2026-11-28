@@ -66,6 +66,28 @@ def test_a_host_package_holds_its_settings_and_tempcomp_line(tmp_path: Path) -> 
     assert "@VERSION@" not in fields and "@HOST@" not in fields
 
 
+@pytest.mark.skipif(shutil.which("dpkg-deb") is None, reason="needs dpkg-deb")
+def test_the_holdover_package_holds_its_script_units_and_settings(
+    tmp_path: Path,
+) -> None:
+    subprocess.run([BUILD, "--holdover", str(tmp_path)], check=True)
+    (package,) = tmp_path.glob("tempcomp-holdover_*_all.deb")
+    listing = contents(package)
+    for path in (
+        "./usr/sbin/tempcomp-holdover",
+        "./lib/systemd/system/tempcomp-holdover.service",
+        "./lib/systemd/system/tempcomp-holdover.timer",
+        "./etc/tempcomp-holdover.conf",
+    ):
+        assert path in listing
+    control = tmp_path / "control"
+    subprocess.run(["dpkg-deb", "--control", package, control], check=True)
+    assert (control / "conffiles").read_text() == "/etc/tempcomp-holdover.conf\n"
+    assert "Package: tempcomp-holdover\n" in (control / "control").read_text()
+    for script in ("postinst", "prerm", "postrm"):
+        assert (control / script).stat().st_mode & 0o111
+
+
 def test_each_hosts_tempcomp_line_reads_the_filters_output() -> None:
     for conf in BUILD.parent.glob("hosts/*/tempcomp-filter.conf"):
         (line,) = [x for x in conf.read_text().splitlines() if x.startswith("tempcomp")]
