@@ -1,13 +1,20 @@
 version: 2
 
 updates:
-# No workflows here, so no actions to watch. uv.lock pins numpy, scipy and the
-# dev tools (ruff, mypy, pytest); without this the pins hold until someone
-# remembers them. Grouped so the weekly refresh is one PR.
+# uv.lock pins numpy, scipy and the dev tools (ruff, mypy, pytest); without
+# this the pins hold until someone remembers them. Grouped so the weekly
+# refresh is one PR. The workflows' actions are watched the same way.
 - package-ecosystem: uv
   directory: /
   schedule:
     interval: weekly
   groups:
     uv:
+      patterns: ["*"]
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+  groups:
+    actions:
       patterns: ["*"]

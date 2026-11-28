@@ -122,7 +122,9 @@ Rust daemon to record data and compute tempcomp for chrony.
 - Add deterministic tests for behavior changes and regressions,
   including edge cases.
 - Before commits: `uv run ruff format`, `uv run ruff check`,
-  `uv run mypy`, `uv run pytest`.
+  `uv run mypy`, `uv run pytest`.  CI
+  (`.github/workflows/checks.yml`) runs the same, mypy with `--strict`,
+  and shellcheck, on every push to main and every PR.
 - Be Pythonic; prefer the stdlib to a hand-rolled helper.
 - ASCII only in code, docs and output.  Ask before using Unicode.
 - Prefer consistency above most other concerns.
