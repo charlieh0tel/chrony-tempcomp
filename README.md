@@ -12,6 +12,10 @@ temperature.
   `tools/build_deb.sh` packages it as `dist/tempcomp-filter_*_all.deb`,
   and with `--host HOST` a host's settings and `tempcomp` line from
   `tools/hosts/HOST` as `tempcomp-filter-HOST`.
+- [`tools/tempcomp-holdover.sh`](tools/tempcomp-holdover.sh), with its
+  timer, makes chronyd hold over on a fixed cycle for test 3, every
+  source noselect for part of each cycle and given back after;
+  `tools/build_deb.sh --holdover` packages it as `tempcomp-holdover`.
 - [docs/design.md](docs/design.md): why chrony's `tempcomp` fed a raw
   sensor reading fails when the sensor is away from the crystal, or
   noisy and coarse; how the lag is found; a filter program to feed it

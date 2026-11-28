@@ -234,9 +234,25 @@ next.
       switches, 12 to 30 us of offset), 24 to 32 s on apu-0 (6, 0.8 to
       2.3 us) (`data/chronyd-step-*-1126.txt`).  0.1.7 ends test 2:
       `ALTERNATE_TAU` is gone from both host packages.
-   3. Holdover: the reference cut for a few hours, filter on and off, the
-      time error against the recorder's PPS.  The before-and-after
-      numbers, and the chrony-dev question.
+   3. Holdover: the reference cut for a few hours, the time error
+      against the recorder's PPS.  The before-and-after numbers, and the
+      chrony-dev question.
+      A head-to-head of the feeds cannot decide in days: drawn from the
+      replay's 3 h windows, 7 a feed shows smoothed ahead 66% of the
+      time on draws and 53% on apu-0, 120 a feed 97% and 61%; each
+      window's temperature moves far more than the feeds differ.  So
+      test 3 checks the replay instead: each real holdover's time error
+      against what the replay predicts for that window and feed.  If they
+      agree, the replay's paired comparison (284 windows a host) stands.
+      0.1.8: `tempcomp-holdover` (a timer each minute) makes every source
+      chronyd lists noselect from 2 h into each 6 h cycle from 06:00 UTC
+      on 2026-11-28 to 06:00 on 12-01, holdovers 08-12, 14-18, 20-24 and
+      02-06 UTC, 12 a host, and gives back only what it changed; the host
+      packages set `ALTERNATE_TAU=0`, the raw sensor on odd UTC days
+      (11-28, 11-30), so the feed switches while locked.  Truth: the
+      recorders, restarted at 02:07 (draws) and 02:09 UTC (apu-0) on
+      11-28, and chronyd's refclock and statistics logs, which keep
+      sampling a noselect source.
       draws's 5 days on NTP (11-16 to 11-21) already hold over between
       polls, and test 2 alternated through them (`tracking.log`, updates
       from chronos): filtered days polled at a median 1029 and 1031 s,

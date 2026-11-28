@@ -16,3 +16,7 @@ PERIOD=5
 
 # Seconds between summaries in the log.
 STATS_INTERVAL=900
+
+# Test 3 (docs/status.md): the raw sensor on odd UTC days since the epoch,
+# so tempcomp-holdover's holdovers are scored on both feeds.
+ALTERNATE_TAU=0

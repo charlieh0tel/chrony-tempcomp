@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Test 3's holdover: one tick, from tempcomp-holdover.timer.
+[Unit]
+Description=Holdover test: chronyd's sources on or noselect by the clock
+After=chrony.service
+Requisite=chrony.service
+
+[Service]
+Type=oneshot
+# Root: chronyc's selectopts and selectdata need chronyd's socket.
+ExecStart=/usr/sbin/tempcomp-holdover tick
+RuntimeDirectory=tempcomp-holdover
+RuntimeDirectoryPreserve=yes
