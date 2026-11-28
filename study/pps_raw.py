@@ -39,6 +39,7 @@ import select
 import struct
 import sys
 import time
+from typing import Protocol, TextIO
 
 DEVICE = "/sys/class/pps/pps0"
 # Every temperature the kernel offers, in millidegrees Celsius.
@@ -177,6 +178,18 @@ def busy_fraction(before: tuple[int, int], after: tuple[int, int]) -> float:
     return (after[0] - before[0]) / total if total > 0 else 0.0
 
 
+class EdgeSource(Protocol):
+    """Where the edges come from: the clock that stamps them, the header
+    lines saying what it is, and each edge's (stamp ns, sequence)."""
+
+    @property
+    def stamp_clock(self) -> int: ...
+
+    def header(self) -> list[tuple[str, str]]: ...
+
+    def next_edge(self) -> tuple[int, int]: ...
+
+
 class SysfsSource:
     """Edges from a PPS device's `assert` file, polled just after each is
     due; the kernel stamps them in CLOCK_REALTIME."""
@@ -271,22 +284,23 @@ class PhcSource:
             return stamp, self.sequence
 
 
-def write_header(file, source, sensors: list[str]) -> None:
+def write_header(file: TextIO, source: EdgeSource, sensors: list[str]) -> None:
     """Comment lines saying what the rows are from, then the column names."""
-    for key, value in [
-        ("host", platform.node()),
-        ("kernel", platform.release()),
-        ("boot_id", read_text(BOOT_ID)),
-        *source.header(),
-    ]:
-        file.write(f"# {key}={value}\n")
-    for path in sensors:
-        file.write(f"# sensor={path} {sensor_name(path)}\n")
+    file.writelines(
+        f"# {key}={value}\n"
+        for key, value in [
+            ("host", platform.node()),
+            ("kernel", platform.release()),
+            ("boot_id", read_text(BOOT_ID)),
+            *source.header(),
+        ]
+    )
+    file.writelines(f"# sensor={path} {sensor_name(path)}\n" for path in sensors)
 
 
 def record(
     output: str,
-    source,
+    source: EdgeSource,
     sensor_paths: list[str] | None = None,
     edges: int = 0,
 ) -> None:

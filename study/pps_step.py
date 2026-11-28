@@ -16,7 +16,7 @@ import csv
 from dataclasses import dataclass
 
 import numpy as np
-from common import MAD_SIGMA, cross_validate, design, huber_fit, lag
+from common import MAD_SIGMA, cross_validate, design, fit_predictor, huber_fit, lag
 from pps_raw import COLUMNS, NANOSECONDS
 
 MILLIDEGREES = 1000.0
@@ -147,7 +147,7 @@ def load_run(path: str) -> Run:
     if len(sources) > 1:
         raise ValueError(f"{path}: more than one clocksource: {sorted(sources)}")
 
-    def integers(name):
+    def integers(name: str) -> np.ndarray:
         return np.array([int(value) for value in column[name]], dtype=np.int64)
 
     return Run(
@@ -172,7 +172,8 @@ def load_run(path: str) -> Run:
 
 def unix_edges(run: Run) -> np.ndarray:
     """Where each edge is in Unix time, ns, from the read after it."""
-    return run.unix_read - (run.stamp_read - run.stamp_edge)
+    edges: np.ndarray = run.unix_read - (run.stamp_read - run.stamp_edge)
+    return edges
 
 
 def edge_times(run: Run) -> tuple[np.ndarray, np.ndarray]:
@@ -312,11 +313,7 @@ def scan_lags(u: np.ndarray, y: np.ndarray, width: float) -> LagScan | None:
     scores = []
     for minutes in LAGS:
         x = design(lag(filled, minutes * 60, width), False)
-        scores.append(
-            cross_validate(
-                lambda train, x=x: x @ huber_fit(x[train], y[train]), good, y
-            )
-        )
+        scores.append(cross_validate(fit_predictor(x, y), good, y))
     best = int(np.argmin(scores))
     x = design(lag(filled, LAGS[best] * 60, width), False)
     return LagScan(scores, best, float(huber_fit(x[good], y[good])[1]))
@@ -358,7 +355,7 @@ def chronyd_own(path: str, unix: np.ndarray) -> np.ndarray:
     own = data["frequency"] - data["compensation"]
     known = ~np.isnan(own)
     at, own = data["at"][known], own[known]
-    result = np.interp(unix, at, own)
+    result: np.ndarray = np.interp(unix, at, own)
     near = np.clip(np.searchsorted(at, unix), 1, len(at) - 1)
     far = np.minimum(np.abs(unix - at[near - 1]), np.abs(at[near] - unix)) > CHRONYD_GAP
     result[far | np.isnan(unix)] = np.nan

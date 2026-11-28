@@ -4,6 +4,7 @@
 import datetime
 import gzip
 import lzma
+from pathlib import Path
 
 import chronyd_step
 import numpy as np
@@ -15,11 +16,11 @@ STEP_AT, STEP_PPM, DELAY = 600, -0.886, 96
 UPDATE, SAMPLES = 16, 11
 
 
-def stamp(seconds):
+def stamp(seconds: float) -> str:
     return f"{START + datetime.timedelta(seconds=seconds):%Y-%m-%d %H:%M:%S}"
 
 
-def write_logs(directory):
+def write_logs(directory: Path) -> None:
     """Logs over 30 min: the compensation steps at STEP_AT, the loop's
     frequency follows DELAY later, with a peak offset of 20 us; the
     statistics are split across three files, plain, gzipped and xz'd."""
@@ -52,7 +53,7 @@ def write_logs(directory):
     (directory / "statistics.log").write_text("".join(statistics[2 * third :]))
 
 
-def test_the_step_and_the_loops_response_are_found(tmp_path):
+def test_the_step_and_the_loops_response_are_found(tmp_path: Path) -> None:
     write_logs(tmp_path)
     compensation = chronyd_step.table(
         tmp_path, "tempcomp", (chronyd_step.TEMPCOMP_COMPENSATION,)
@@ -69,6 +70,7 @@ def test_the_step_and_the_loops_response_are_found(tmp_path):
         chronyd_step.TRACKING_SOURCE,
     )
     r = chronyd_step.response(tracking, at)
+    assert r is not None
     assert r["moved"] == pytest.approx(STEP_PPM)
     # The frequency moves at the first update DELAY after the step.
     first = (STEP_AT + DELAY + UPDATE - 1) // UPDATE * UPDATE
@@ -76,7 +78,7 @@ def test_the_step_and_the_loops_response_are_found(tmp_path):
     assert r["offset"] == pytest.approx(20e-6)
 
 
-def test_the_window_comes_from_the_statistics_across_rotations(tmp_path):
+def test_the_window_comes_from_the_statistics_across_rotations(tmp_path: Path) -> None:
     write_logs(tmp_path)
     statistics = chronyd_step.table(
         tmp_path,
@@ -92,19 +94,22 @@ def test_the_window_comes_from_the_statistics_across_rotations(tmp_path):
     assert w["window"] == UPDATE * SAMPLES
 
 
-def test_small_changes_are_not_steps():
-    compensation = chronyd_step.np.array([[0.0, 0.886], [15.0, 0.887], [30.0, 0.0]])
-    assert chronyd_step.steps(compensation, 0.1) == [(30.0, pytest.approx(-0.887))]
+def test_small_changes_are_not_steps() -> None:
+    compensation = np.array([[0.0, 0.886], [15.0, 0.887], [30.0, 0.0]])
+    found = chronyd_step.steps(compensation, 0.1)
+    assert len(found) == 1
+    assert found[0][0] == 30.0
+    assert found[0][1] == pytest.approx(-0.887)
 
 
-def test_raw_readings_flipping_are_not_steps():
-    t = chronyd_step.np.arange(0.0, 1800.0, 15.0)
+def test_raw_readings_flipping_are_not_steps() -> None:
+    t = np.arange(0.0, 1800.0, 15.0)
     flips = 0.5 + 0.123 * (t // 60 % 2)
-    compensation = chronyd_step.np.column_stack([t, flips])
+    compensation = np.column_stack([t, flips])
     assert chronyd_step.steps(compensation, 0.1) == []
 
 
-def test_a_step_with_no_rows_from_the_source_after_it_is_skipped():
+def test_a_step_with_no_rows_from_the_source_after_it_is_skipped() -> None:
     at = 1000.0
     t = np.arange(at - chronyd_step.BEFORE, at, 16.0)
     tracking = np.column_stack([t, np.zeros(len(t)), np.zeros(len(t))])

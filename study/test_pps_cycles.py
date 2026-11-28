@@ -2,6 +2,8 @@
 """pps_cycles.py, on simulated cycles with known answers."""
 
 import sqlite3
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pps_cycles
@@ -22,7 +24,9 @@ SLOPE = -0.1
 CURVE = 0.002
 
 
-def simulate(crystal_lag, noise=0.0, room_ppm_per_degree=0.0):
+def simulate(
+    crystal_lag: float, noise: float = 0.0, room_ppm_per_degree: float = 0.0
+) -> pps_cycles.Series:
     """Cycles of load after a quiet hour, the crystal `crystal_lag` s behind
     the sensor, with a room warming throughout."""
     on = START + SETTLE_BEFORE + np.arange(CYCLES) * 2 * HALF_CYCLE
@@ -54,7 +58,7 @@ def simulate(crystal_lag, noise=0.0, room_ppm_per_degree=0.0):
     )
 
 
-def test_read_cycles_pairs_starts_and_ends(tmp_path):
+def test_read_cycles_pairs_starts_and_ends(tmp_path: Path) -> None:
     path = tmp_path / "cycles.log"
     path.write_text("on=10\noff=20\non=30\noff=40\ndone\n")
     on, off = pps_cycles.read_cycles(str(path))
@@ -62,14 +66,14 @@ def test_read_cycles_pairs_starts_and_ends(tmp_path):
     assert off.tolist() == [20.0, 40.0]
 
 
-def test_read_cycles_refuses_a_start_with_no_end(tmp_path):
+def test_read_cycles_refuses_a_start_with_no_end(tmp_path: Path) -> None:
     path = tmp_path / "cycles.log"
     path.write_text("on=10\noff=20\non=30\n")
     with pytest.raises(ValueError):
         pps_cycles.read_cycles(str(path))
 
 
-def test_read_ambient_takes_only_the_room_in_order(tmp_path):
+def test_read_ambient_takes_only_the_room_in_order(tmp_path: Path) -> None:
     path = tmp_path / "sensors.sqlite"
     connection = sqlite3.connect(path)
     connection.execute("CREATE TABLE reading (sensor_id, at, value)")
@@ -84,7 +88,7 @@ def test_read_ambient_takes_only_the_room_in_order(tmp_path):
     assert value.tolist() == [20.0, 21.0]
 
 
-def test_usable_drops_a_span_and_its_margin_and_unknown_bins():
+def test_usable_drops_a_span_and_its_margin_and_unknown_bins() -> None:
     series = simulate(45.0)
     middle = series.at[len(series.at) // 2]
     series.unusable = np.array([[middle, middle + 100.0]])
@@ -99,7 +103,7 @@ def test_usable_drops_a_span_and_its_margin_and_unknown_bins():
 
 
 @pytest.mark.parametrize("crystal_lag", [0.0, 45.0, 120.0, 300.0])
-def test_fast_lag_finds_the_crystals_lag(crystal_lag):
+def test_fast_lag_finds_the_crystals_lag(crystal_lag: float) -> None:
     result = pps_cycles.fast_lag(simulate(crystal_lag, noise=1e-3), None)
     minutes = crystal_lag / 60.0
     assert pps_cycles.FAST_LAGS[int(np.argmin(result.held_out))] == pytest.approx(
@@ -114,7 +118,7 @@ def test_fast_lag_finds_the_crystals_lag(crystal_lag):
     )
 
 
-def test_a_folds_best_lag_is_that_cycles_alone():
+def test_a_folds_best_lag_is_that_cycles_alone() -> None:
     series = simulate(45.0, noise=1e-3)
     held = pps_cycles.cycle_of(series) == 2
     series.ppm[held] = simulate(300.0, noise=1e-3).ppm[held]
@@ -122,13 +126,13 @@ def test_a_folds_best_lag_is_that_cycles_alone():
     assert best[2] > max(best[0], best[1], best[3])
 
 
-def test_fast_lag_with_the_room_recovers_a_lag_the_room_would_bias():
+def test_fast_lag_with_the_room_recovers_a_lag_the_room_would_bias() -> None:
     series = simulate(45.0, noise=1e-3, room_ppm_per_degree=-0.05)
     result = pps_cycles.fast_lag(series, 0.0)
     assert pps_cycles.FAST_LAGS[int(np.argmin(result.held_out))] == pytest.approx(0.75)
 
 
-def test_fast_lag_ignores_an_unusable_span():
+def test_fast_lag_ignores_an_unusable_span() -> None:
     series = simulate(45.0, noise=1e-3)
     bad = series.at[
         (series.at >= series.load_on[1]) & (series.at < series.load_on[1] + 300)
@@ -141,7 +145,7 @@ def test_fast_lag_ignores_an_unusable_span():
     assert max(masked) < 1.0
 
 
-def test_cycle_of_counts_cycles_and_leaves_out_before_and_after():
+def test_cycle_of_counts_cycles_and_leaves_out_before_and_after() -> None:
     series = simulate(0.0)
     cycle = pps_cycles.cycle_of(series)
     assert (cycle[series.at < series.load_on[0]] == -1).all()
@@ -151,17 +155,18 @@ def test_cycle_of_counts_cycles_and_leaves_out_before_and_after():
     assert not under[np.searchsorted(series.at, series.load_off[1])]
 
 
-def test_score_splits_bias_from_spread():
+def test_score_splits_bias_from_spread() -> None:
     result = pps_cycles.score(np.array([1.0, 3.0]))
     assert result.bias == pytest.approx(2.0)
     assert result.spread == pytest.approx(1.0)
     assert result.rms == pytest.approx(np.sqrt(5.0))
 
 
-def test_a_saved_series_round_trips_each_width(tmp_path):
+def test_a_saved_series_round_trips_each_width(tmp_path: Path) -> None:
     series = simulate(0.0)
     path = tmp_path / "series.npz"
-    arrays = {}
+    # savez's keyword arrays; Any, as its signature also takes allow_pickle.
+    arrays: dict[str, Any] = {}
     for width, factor in ((pps_cycles.BIN, 1), (pps_cycles.COARSE_BIN, 2)):
         arrays[f"at_{width}"] = series.at * factor
         arrays[f"ppm_{width}"] = series.ppm * factor

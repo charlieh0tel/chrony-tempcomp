@@ -80,8 +80,7 @@ def main() -> None:
     args = parser.parse_args()
     arrays = place([read_piece(path, args.sensor) for path in args.runs])
     exclude(arrays, args.exclude)
-    # The arrays' names are savez's keywords; a dict is what its stub refuses.
-    np.savez_compressed(args.output, allow_pickle=False, **arrays)  # type: ignore[arg-type]
+    np.savez_compressed(args.output, allow_pickle=False, **arrays)
 
 
 if __name__ == "__main__":

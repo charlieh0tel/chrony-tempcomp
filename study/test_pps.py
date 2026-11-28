@@ -4,12 +4,15 @@
 import csv
 import threading
 import time
+from collections.abc import Callable, Collection
+from pathlib import Path
 
 import numpy as np
 import pps_raw
 import pps_step
 import pytest
 import smoothing
+from common import lag
 
 NS = pps_raw.NANOSECONDS
 START_UNIX = 1_800_000_000
@@ -18,17 +21,17 @@ SEED = 1
 
 
 def simulate(
-    path,
-    ppm_of_t,
-    seconds=3600,
-    real_rate_ppm=30.0,
-    jitter=1e-6,
-    busy_of_t=None,
-    sensor_of_t=None,
-    missing=(),
-    late=(),
-    clocksources=None,
-):
+    path: Path,
+    ppm_of_t: Callable[[float], float],
+    seconds: int = 3600,
+    real_rate_ppm: float = 30.0,
+    jitter: float = 1e-6,
+    busy_of_t: Callable[[float], float] | None = None,
+    sensor_of_t: Callable[[float], float] | None = None,
+    missing: Collection[int] = (),
+    late: Collection[int] = (),
+    clocksources: Callable[[float], str] | None = None,
+) -> None:
     """Write what pps_raw.py would for a crystal `ppm_of_t` fast at true
     time t, under a realtime clock `real_rate_ppm` off true (chronyd's
     steering), with each edge stamped late by jitter and read 1 to 30 ms
@@ -39,7 +42,7 @@ def simulate(
     accumulated = np.cumsum(ppm) * 1e-6
     rate = 1 + real_rate_ppm * 1e-6
 
-    def real(at):
+    def real(at: float) -> int:
         return int(START_UNIX * NS + at * rate * NS)
 
     with open(path, "w", newline="") as file:
@@ -68,27 +71,29 @@ def simulate(
             )
 
 
-def rising(t, start, base, jump, amplitude, tau):
+def rising(
+    t: float, start: float, base: float, jump: float, amplitude: float, tau: float
+) -> float:
     if t < start:
         return base
-    return base + jump + amplitude * (1 - np.exp(-(t - start) / tau))
+    return base + jump + amplitude * (1 - float(np.exp(-(t - start) / tau)))
 
 
-def test_parse_assert():
+def test_parse_assert() -> None:
     assert pps_raw.parse_assert("1800000000.000001234#567\n") == (
         1800000000 * NS + 1234,
         567,
     )
 
 
-def test_read_assert_empty_says_why(tmp_path):
+def test_read_assert_empty_says_why(tmp_path: Path) -> None:
     path = tmp_path / "assert"
     path.write_text("")
     with pytest.raises(SystemExit, match="does not capture assert"):
         pps_raw.read_assert(str(path))
 
 
-def test_read_cpu_times_and_busy_fraction(tmp_path):
+def test_read_cpu_times_and_busy_fraction(tmp_path: Path) -> None:
     stat = tmp_path / "stat"
     stat.write_text("cpu  10 0 10 70 10 0 0 0 0 0\ncpu0 1 1 1 1 1\n")
     assert pps_raw.read_cpu_times(str(stat)) == (20, 100)
@@ -96,7 +101,9 @@ def test_read_cpu_times_and_busy_fraction(tmp_path):
     assert pps_raw.busy_fraction((20, 100), (20, 100)) == 0.0
 
 
-def test_sensors_failure_is_empty_and_said_once(tmp_path, capsys):
+def test_sensors_failure_is_empty_and_said_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     good = tmp_path / "good"
     good.write_text("41000\n")
     bad = str(tmp_path / "absent")
@@ -106,7 +113,7 @@ def test_sensors_failure_is_empty_and_said_once(tmp_path, capsys):
     assert capsys.readouterr().err.count("cannot read") == 1
 
 
-def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
+def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path: Path) -> None:
     device = tmp_path / "pps0"
     device.mkdir()
     (device / "name").write_text("fake\n")
@@ -116,7 +123,7 @@ def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
     sensor.write_text("42000\n")
     stop = threading.Event()
 
-    def stamp(sequence):
+    def stamp(sequence: int) -> None:
         # Stamped nearly a second ago, so the next edge is due at once.
         seconds = time.time() - 0.95
         whole = int(seconds)
@@ -124,7 +131,7 @@ def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
         fresh.write_text(f"{whole}.{int((seconds - whole) * NS):09d}#{sequence}\n")
         fresh.replace(assert_file)
 
-    def edges():
+    def edges() -> None:
         sequence = 1
         while not stop.wait(0.05):
             sequence += 1
@@ -154,13 +161,13 @@ def test_record_writes_a_row_per_edge_and_refuses_to_overwrite(tmp_path):
         )
 
 
-def test_parse_extts():
+def test_parse_extts() -> None:
     event = pps_raw.EXTTS_EVENT.pack(1800000000, 1234, 0, 1, 7)
     assert len(event) == 32
     assert pps_raw.parse_extts(event) == (1800000000 * NS + 1234, 1)
 
 
-def test_phc_source_records_its_channel_only(tmp_path):
+def test_phc_source_records_its_channel_only(tmp_path: Path) -> None:
     events = tmp_path / "ptp9"
     events.write_bytes(
         b"".join(
@@ -180,14 +187,21 @@ def test_phc_source_records_its_channel_only(tmp_path):
     assert run.meta["channel"] == "0"
 
 
-def test_phc_source_refuses_a_short_read(tmp_path):
+def test_phc_source_refuses_a_short_read(tmp_path: Path) -> None:
     events = tmp_path / "ptp9"
     events.write_bytes(b"short")
     with pytest.raises(SystemExit, match="5 bytes"):
         pps_raw.PhcSource(str(events)).next_edge()
 
 
-def simulate_phc(path, ppm, seconds=1200, phc_ppm=50.0, epoch=37.0, width=0.5):
+def simulate_phc(
+    path: Path,
+    ppm: float,
+    seconds: int = 1200,
+    phc_ppm: float = 50.0,
+    epoch: float = 37.0,
+    width: float = 0.5,
+) -> None:
     """What pps_raw.py --phc would write: both edges of each pulse, in a
     free-running clock `phc_ppm` off true from an arbitrary `epoch`, with a
     realtime clock on true."""
@@ -200,7 +214,7 @@ def simulate_phc(path, ppm, seconds=1200, phc_ppm=50.0, epoch=37.0, width=0.5):
             edge = i // 2 + (width if i % 2 else 0.0) + rng.normal(0, 1e-8)
             read = edge + rng.uniform(50e-6, 2e-3)
 
-            def phc(at):
+            def phc(at: float) -> int:
                 return int((epoch + at * (1 + phc_ppm * 1e-6)) * NS)
 
             writer.writerow(
@@ -219,7 +233,9 @@ def simulate_phc(path, ppm, seconds=1200, phc_ppm=50.0, epoch=37.0, width=0.5):
 
 
 @pytest.mark.parametrize("phc_ppm", [-50.0, 0.0, 50.0])
-def test_phc_run_measures_the_crystal_not_the_nic(tmp_path, phc_ppm):
+def test_phc_run_measures_the_crystal_not_the_nic(
+    tmp_path: Path, phc_ppm: float
+) -> None:
     path = tmp_path / "run.csv"
     simulate_phc(path, -23.0, phc_ppm=phc_ppm)
     bins = pps_step.bin_run(pps_step.load_run(str(path)))
@@ -227,7 +243,7 @@ def test_phc_run_measures_the_crystal_not_the_nic(tmp_path, phc_ppm):
     assert bins.dropped == 0
 
 
-def test_phc_run_keeps_the_edge_on_the_second(tmp_path):
+def test_phc_run_keeps_the_edge_on_the_second(tmp_path: Path) -> None:
     path = tmp_path / "run.csv"
     simulate_phc(path, 1.0, seconds=100, width=0.1)
     run = pps_step.load_run(str(path))
@@ -239,7 +255,7 @@ def test_phc_run_keeps_the_edge_on_the_second(tmp_path):
     assert abs(pps_step.bin_run(run).unix[0] - (START_UNIX + 30)) < 1
 
 
-def test_frequency_has_chronyd_sign_and_no_chronyd_in_it(tmp_path):
+def test_frequency_has_chronyd_sign_and_no_chronyd_in_it(tmp_path: Path) -> None:
     """Fast is positive, whatever chronyd is doing to the realtime clock."""
     for real_rate_ppm in (-100.0, 0.0, 100.0):
         path = tmp_path / f"run{real_rate_ppm}.csv"
@@ -248,7 +264,7 @@ def test_frequency_has_chronyd_sign_and_no_chronyd_in_it(tmp_path):
         assert np.nanmedian(bins.ppm) == pytest.approx(12.0, abs=0.02)
 
 
-def test_minute_noise_matches_the_edge_jitter(tmp_path):
+def test_minute_noise_matches_the_edge_jitter(tmp_path: Path) -> None:
     """A microsecond of edge jitter is well under 0.02 ppm per minute."""
     path = tmp_path / "run.csv"
     simulate(path, lambda t: 0.0, seconds=3600)
@@ -257,7 +273,7 @@ def test_minute_noise_matches_the_edge_jitter(tmp_path):
     assert bins.jitter == pytest.approx(1e-6, rel=0.3)
 
 
-def test_missing_and_late_edges_do_not_move_the_frequency(tmp_path):
+def test_missing_and_late_edges_do_not_move_the_frequency(tmp_path: Path) -> None:
     path = tmp_path / "run.csv"
     simulate(
         path,
@@ -272,14 +288,14 @@ def test_missing_and_late_edges_do_not_move_the_frequency(tmp_path):
     assert np.nanmax(np.abs(bins.ppm + 3.0)) < 0.05
 
 
-def test_bin_with_too_few_edges_has_no_frequency(tmp_path):
+def test_bin_with_too_few_edges_has_no_frequency(tmp_path: Path) -> None:
     path = tmp_path / "run.csv"
     simulate(path, lambda t: 1.0, seconds=600, missing=set(range(125, 175)))
     bins = pps_step.bin_run(pps_step.load_run(str(path)))
     assert np.isnan(bins.ppm).sum() == 1
 
 
-def test_realtime_step_between_edge_and_read_is_dropped(tmp_path):
+def test_realtime_step_between_edge_and_read_is_dropped(tmp_path: Path) -> None:
     path = tmp_path / "run.csv"
     simulate(path, lambda t: 2.0, seconds=300)
     run = pps_step.load_run(str(path))
@@ -288,7 +304,7 @@ def test_realtime_step_between_edge_and_read_is_dropped(tmp_path):
     assert len(pps_step.edge_times(run)[0]) == 298
 
 
-def test_load_run_short_last_row_and_empty_sensor(tmp_path):
+def test_load_run_short_last_row_and_empty_sensor(tmp_path: Path) -> None:
     path = tmp_path / "run.csv"
     simulate(path, lambda t: 1.0, seconds=10)
     lines = path.read_text().splitlines()
@@ -299,7 +315,7 @@ def test_load_run_short_last_row_and_empty_sensor(tmp_path):
     assert np.isnan(run.sensors[SENSOR][-1])
 
 
-def test_load_run_refuses_two_clocksources(tmp_path):
+def test_load_run_refuses_two_clocksources(tmp_path: Path) -> None:
     path = tmp_path / "run.csv"
     simulate(
         path,
@@ -311,7 +327,7 @@ def test_load_run_refuses_two_clocksources(tmp_path):
         pps_step.load_run(str(path))
 
 
-def test_find_steps_ignores_a_flicker():
+def test_find_steps_ignores_a_flicker() -> None:
     t = np.arange(4000.0)
     busy = np.zeros_like(t)
     busy[1000:2500] = 1.0
@@ -324,36 +340,38 @@ def test_find_steps_ignores_a_flicker():
 
 
 @pytest.mark.parametrize("tau", [120.0, 300.0, 1200.0])
-def test_fit_step_recovers_tau_and_amplitude(tmp_path, tau):
+def test_fit_step_recovers_tau_and_amplitude(tmp_path: Path, tau: float) -> None:
     path = tmp_path / "run.csv"
     start = 1800.0
     simulate(path, lambda t: rising(t, start, 5.0, 0.0, -2.0, tau), seconds=4 * 3600)
     bins = pps_step.bin_run(pps_step.load_run(str(path)))
     fit = pps_step.fit_step(bins.t, bins.ppm, start, False)
+    assert fit is not None
     assert fit.tau == pytest.approx(tau, rel=0.1)
     assert fit.amplitude == pytest.approx(-2.0, rel=0.02)
     assert fit.y0 == pytest.approx(5.0, abs=0.01)
     assert fit.tau_low <= fit.tau <= fit.tau_high
 
 
-def test_fit_step_separates_an_immediate_jump(tmp_path):
+def test_fit_step_separates_an_immediate_jump(tmp_path: Path) -> None:
     """An electrical jump at the step is not to be read as a short tau."""
     path = tmp_path / "run.csv"
     start = 1800.0
     simulate(path, lambda t: rising(t, start, 0.0, 0.5, -2.0, 600.0), seconds=3 * 3600)
     bins = pps_step.bin_run(pps_step.load_run(str(path)))
     fit = pps_step.fit_step(bins.t, bins.ppm, start, True)
+    assert fit is not None
     assert fit.jump == pytest.approx(0.5, abs=0.03)
     assert fit.tau == pytest.approx(600.0, rel=0.1)
 
 
-def test_fit_step_needs_both_sides():
+def test_fit_step_needs_both_sides() -> None:
     t = np.arange(100.0)
     assert pps_step.fit_step(t, t, -1.0, False) is None
     assert pps_step.fit_step(t, t, 1000.0, False) is None
 
 
-def lagged(u, tau):
+def lagged(u: np.ndarray, tau: float) -> np.ndarray:
     out = np.empty_like(u)
     state = u[0]
     for i, value in enumerate(u):
@@ -362,7 +380,7 @@ def lagged(u, tau):
     return out
 
 
-def test_scan_lags_recovers_a_known_lag():
+def test_scan_lags_recovers_a_known_lag() -> None:
     rng = np.random.default_rng(SEED)
     minutes = 24 * 60
     t = np.arange(minutes * 60.0)
@@ -371,17 +389,18 @@ def test_scan_lags_recovers_a_known_lag():
     u = wander[::60][:minutes]
     y = -0.2 * crystal[::60][:minutes] + rng.normal(0, 0.002, minutes)
     scan = pps_step.scan_lags(u, y, 60.0)
+    assert scan is not None
     assert pps_step.LAGS[scan.best] == 10
     assert scan.slope == pytest.approx(-0.2, rel=0.05)
     assert scan.scores[scan.best] < scan.scores[0]
 
 
-def test_scan_lags_refuses_too_little_or_flat():
+def test_scan_lags_refuses_too_little_or_flat() -> None:
     assert pps_step.scan_lags(np.zeros(100), np.arange(100.0), 60.0) is None
     assert pps_step.scan_lags(np.arange(10.0), np.arange(10.0), 60.0) is None
 
 
-def test_cross_predict_recovers_a_lag_on_a_curve_with_a_turn():
+def test_cross_predict_recovers_a_lag_on_a_curve_with_a_turn() -> None:
     """The frequency dips going both ways, as it does crossing the turn of
     a parabola: no straight line does this, one curve through a lag does."""
     rng = np.random.default_rng(SEED)
@@ -397,21 +416,22 @@ def test_cross_predict_recovers_a_lag_on_a_curve_with_a_turn():
             np.exp(-(t - load_off) / 150),
         ),
     )
-    crystal = pps_step.lag(u, 60.0, width)
+    crystal = lag(u, 60.0, width)
     y = 0.0055 * (crystal - 68.6) ** 2 + 3.3 + rng.normal(0, 0.02, len(t))
     cross = pps_step.cross_predict(t, u, y, load_off, width)
+    assert cross is not None
     assert pps_step.CROSS_LAGS[cross.best] == pytest.approx(1, abs=0.25)
     assert cross.minimum == pytest.approx(68.6, abs=0.5)
     assert cross.heating_to_cooling[cross.best] < 0.05
     assert cross.heating_to_cooling[0] > cross.heating_to_cooling[cross.best]
 
 
-def test_cross_predict_needs_both_sides():
+def test_cross_predict_needs_both_sides() -> None:
     t = np.arange(100.0)
     assert pps_step.cross_predict(t, t, t, 1000.0, 1.0) is None
 
 
-def test_chronyd_own_subtracts_compensation_and_leaves_gaps(tmp_path):
+def test_chronyd_own_subtracts_compensation_and_leaves_gaps(tmp_path: Path) -> None:
     path = tmp_path / "host.npz"
     at = np.array([0.0, 60.0, 120.0, 5000.0, 5060.0])
     np.savez(
@@ -427,11 +447,13 @@ def test_chronyd_own_subtracts_compensation_and_leaves_gaps(tmp_path):
     assert np.isnan(own[3])
 
 
-def test_report_runs_end_to_end(tmp_path, capsys):
+def test_report_runs_end_to_end(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     path = tmp_path / "run.csv"
     on, off = 1800.0, 3600.0
 
-    def crystal(t):
+    def crystal(t: float) -> float:
         if t < off:
             return rising(t, on, 5.0, 0.0, -2.0, 300.0)
         peak = rising(off, on, 5.0, 0.0, -2.0, 300.0)
@@ -461,33 +483,33 @@ def test_report_runs_end_to_end(tmp_path, capsys):
     assert "median +7.000 ppm" in out
 
 
-def test_forward_backward_smooths_without_delay():
+def test_forward_backward_smooths_without_delay() -> None:
     pulse = np.zeros(601)
     pulse[300] = 1.0
     smooth = smoothing.forward_backward(pulse, 600.0)
     assert int(np.argmax(smooth)) == 300
     assert smooth.max() < 0.5
-    causal = pps_step.lag(pulse, 600.0, smoothing.BUCKET)
+    causal = lag(pulse, 600.0, smoothing.BUCKET)
     assert int(np.argmax(causal)) == 300
     assert np.sum(np.arange(601) * causal) / causal.sum() > 305
     assert np.sum(np.arange(601) * smooth) / smooth.sum() == pytest.approx(300, abs=0.5)
 
 
-def test_delayed_delays_by_whole_buckets():
+def test_delayed_delays_by_whole_buckets() -> None:
     u = np.arange(5.0)
     assert list(smoothing.delayed(u, 120.0)) == [0, 0, 0, 1, 2]
     assert list(smoothing.delayed(u, 0.0)) == [0, 1, 2, 3, 4]
 
 
-def test_two_paths_shares_add_up():
+def test_two_paths_shares_add_up() -> None:
     u = np.ones(50)
     assert np.allclose(smoothing.two_paths(u, 0.6, 20, 60.0), 1.0)
     step = np.concatenate([np.zeros(10), np.ones(200)])
-    fast = pps_step.lag(step, 60.0, 60.0)
+    fast = lag(step, 60.0, 60.0)
     assert np.allclose(smoothing.two_paths(step, 1.0, 20, 60.0), fast)
 
 
-def test_read_host_keeps_the_days_with_compensation_off_or_on(tmp_path):
+def test_read_host_keeps_the_days_with_compensation_off_or_on(tmp_path: Path) -> None:
     day = 86400
     at = np.arange(0.0, 4 * day, smoothing.BUCKET)
     compensation = np.where(at >= 1.5 * day, 0.1, 0.0)

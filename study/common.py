@@ -5,6 +5,8 @@ y is the clock's own frequency (chronyd's frequency less tempcomp's
 compensation), in ppm; u the temperature in °C, from its mean.
 """
 
+from collections.abc import Callable
+
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.signal import lfilter
@@ -24,7 +26,7 @@ HUBER = 1.345
 MAD_SIGMA = 1.4826
 
 
-def load(path):
+def load(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """A fetched host's readings, `fetch.py`'s .npz: the sample times,
     u, y and which samples have both."""
     d = np.load(path)
@@ -44,9 +46,10 @@ def load(path):
     per = int(STEP // np.median(np.diff(at)))
     n = len(at) // per
 
-    def mean(v):
+    def mean(v: np.ndarray) -> np.ndarray:
         with np.errstate(all="ignore"):
-            return np.nanmean(v[: n * per].reshape(n, per), 1)
+            means: np.ndarray = np.nanmean(v[: n * per].reshape(n, per), 1)
+            return means
 
     t, u, y = mean(at), mean(u), mean(y)
     good = ~np.isnan(u) & ~np.isnan(y)
@@ -55,30 +58,43 @@ def load(path):
     return t, u - u[good].mean(), y, good
 
 
-def lag(u, tau, step=STEP):
+def lag(u: np.ndarray, tau: float, step: float = STEP) -> np.ndarray:
     """u, samples `step` seconds apart, through a first-order lag of time
     constant `tau` seconds, started settled at the first reading."""
     if tau <= 0:
         return u
     a = np.exp(-step / tau)
-    return lfilter([1 - a], [1, -a], u, zi=[a * u[0]])[0]
+    lagged: np.ndarray = lfilter([1 - a], [1, -a], u, zi=[a * u[0]])[0]
+    return lagged
 
 
-def design(x, quadratic):
+def design(x: np.ndarray, quadratic: bool) -> np.ndarray:
     return np.column_stack([np.ones_like(x), x] + ([x * x] if quadratic else []))
 
 
-def huber_fit(X, y):
+def huber_fit(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Robust (Huber) least squares coefficients."""
     beta = np.linalg.lstsq(X, y, rcond=None)[0]
     r = y - X @ beta
     scale = MAD_SIGMA * np.median(np.abs(r - np.median(r))) or 1e-9
-    return least_squares(
+    coefficients: np.ndarray = least_squares(
         lambda b: y - X @ b, beta, loss="huber", f_scale=HUBER * scale
     ).x
+    return coefficients
 
 
-def cross_validate(predict, good, y, margin=MARGIN):
+def fit_predictor(x: np.ndarray, y: np.ndarray) -> Callable[[np.ndarray], np.ndarray]:
+    """For `cross_validate`: the Huber fit of y on the design x over the
+    samples `train` marks, predicting every sample."""
+    return lambda train: x @ huber_fit(x[train], y[train])
+
+
+def cross_validate(
+    predict: Callable[[np.ndarray], np.ndarray],
+    good: np.ndarray,
+    y: np.ndarray,
+    margin: int = MARGIN,
+) -> float:
     """Held-out RMSE: `predict(train)` fits on the samples `train`
     marks and predicts every sample from the temperature alone; each
     fold is held out in turn, with `margin` samples either side."""

@@ -8,13 +8,13 @@ Usage: python3 lag.py HOST.npz...
 import sys
 
 import numpy as np
-from common import cross_validate, design, huber_fit, lag, load
+from common import cross_validate, design, fit_predictor, huber_fit, lag, load
 
 # Lags tried, in minutes.
 LAGS = [0, 5, 10, 20, 30, 60, 90, 120, 180, 240]
 
 
-def main():
+def main() -> None:
     for path in sys.argv[1:]:
         t, u, y, good = load(path)
         print(f"=== {path}: {(t[-1] - t[0]) / 86400:.1f} days")
@@ -24,7 +24,7 @@ def main():
                 x = design(lag(u, minutes * 60), quadratic)
                 scores.append(
                     cross_validate(
-                        lambda train, x=x, y=y: x @ huber_fit(x[train], y[train]),
+                        fit_predictor(x, y),
                         good,
                         y,
                     )

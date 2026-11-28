@@ -28,6 +28,7 @@ import glob
 import gzip
 import os
 import sys
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import numpy as np
@@ -38,14 +39,16 @@ MAX_COMP = 10.0  # ppm, chrony's limit in tempcomp.c
 UNSYNCHRONIZED = "0.0.0.0"
 
 
-def read_log(logdir, name):
+def read_log(logdir: str, name: str) -> Iterator[tuple[float, list[str]]]:
     """Yield (unix time, fields) for each data row of a chrony log and its rotations."""
     paths = glob.glob(os.path.join(logdir, name)) + glob.glob(
         os.path.join(logdir, name + ".*")
     )
     if not paths:
         sys.exit(f"no {name} in {logdir}")
-    days = {}  # strptime per row is most of the run time on a slow box
+    days: dict[
+        str, float
+    ] = {}  # strptime per row is most of the run time on a slow box
     for path in paths:
         opener = gzip.open if path.endswith(".gz") else open
         with opener(path, "rt") as f:
@@ -60,7 +63,9 @@ def read_log(logdir, name):
                 yield days[p[0]] + int(h) * 3600 + int(m) * 60 + int(s), p
 
 
-def load(logdir, source, max_skew):
+def load(
+    logdir: str, source: str, max_skew: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     temp = sorted(
         (t, float(p[2]), float(p[3])) for t, p in read_log(logdir, "tempcomp.log")
     )
@@ -78,7 +83,14 @@ def load(logdir, source, max_skew):
     return tt, T, C, rt, F
 
 
-def pair(tt, T, C, rt, F, max_gap):
+def pair(
+    tt: np.ndarray,
+    T: np.ndarray,
+    C: np.ndarray,
+    rt: np.ndarray,
+    F: np.ndarray,
+    max_gap: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Temperature and the clock's own frequency at each clock update, from
     the sensor reading in force at it, keeping only updates with one at most
     max_gap old.  Both logs are stamped to the second, so an update in the
@@ -94,7 +106,9 @@ def pair(tt, T, C, rt, F, max_gap):
     return at, T[held], F[keep] * (1 - 1e-6 * comp) - comp
 
 
-def bin_points(Ti, F, step, min_count):
+def bin_points(
+    Ti: np.ndarray, F: np.ndarray, step: float, min_count: int
+) -> np.ndarray:
     lo, hi = np.floor(Ti.min() / step) * step, np.ceil(Ti.max() / step) * step
     pts = []
     for c in np.arange(lo, hi + step / 2, step):
@@ -106,7 +120,9 @@ def bin_points(Ti, F, step, min_count):
     return np.array(pts)
 
 
-def table(Ti, F, args, fref):
+def table(
+    Ti: np.ndarray, F: np.ndarray, args: argparse.Namespace, fref: float
+) -> tuple[np.ndarray, np.ndarray]:
     """Points (temp, comp) including any requested extensions past the data."""
     b = bin_points(Ti, F, args.step, args.min_count)
     pts = [(t, fref - f) for t, f in b[:, :2]]
@@ -121,16 +137,16 @@ def table(Ti, F, args, fref):
     return np.array(pts), b
 
 
-def residual(pts, Ti, F, fref):
+def residual(pts: np.ndarray, Ti: np.ndarray, F: np.ndarray, fref: float) -> np.ndarray:
     """The logged frequency under the table, less fref: zero for a perfect fit."""
-    return F + np.interp(Ti, pts[:, 0], pts[:, 1]) - fref
+    return np.asarray(F + np.interp(Ti, pts[:, 0], pts[:, 1]) - fref)
 
 
-def utc(t):
+def utc(t: float) -> str:
     return datetime.fromtimestamp(t, UTC).strftime("%Y-%m-%d %H:%M")
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument(
         "logdir", help="chrony logdir (needs tracking.log and tempcomp.log)"
@@ -208,7 +224,9 @@ def main():
         sys.exit(f"only {len(rt)} usable tracking rows from source {args.source}")
     fref = args.fref if args.fref is not None else round(float(np.median(F)), 3)
 
-    log = lambda s="": print(s, file=sys.stderr)
+    def log(s: str = "") -> None:
+        print(s, file=sys.stderr)
+
     log(f"data   {utc(rt[0])} .. {utc(rt[-1])} UTC, {len(rt)} rows from {args.source}")
     log(f"temp   {Ti.min():g} .. {Ti.max():g}")
     log(
