@@ -70,7 +70,8 @@ def trimmed_fit(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     center = np.median(residual)
     deviation = MAD_SIGMA * np.median(np.abs(residual - center))
     keep = np.abs(residual - center) < TRIM * deviation
-    return np.linalg.lstsq(x[keep], y[keep], rcond=None)[0]
+    coefficients: np.ndarray = np.linalg.lstsq(x[keep], y[keep], rcond=None)[0]
+    return coefficients
 
 
 def held_out_errors(

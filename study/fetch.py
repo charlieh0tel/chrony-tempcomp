@@ -8,6 +8,7 @@ import argparse
 import json
 import urllib.parse
 import urllib.request
+from typing import Any
 
 import numpy as np
 
@@ -19,13 +20,13 @@ PORT = 8323
 TIMEOUT = 120
 
 
-def ask(base, path, query=None):
+def ask(base: str, path: str, query: dict[str, Any] | None = None) -> Any:
     url = f"{base}{path}" + ("?" + urllib.parse.urlencode(query) if query else "")
     with urllib.request.urlopen(url, timeout=TIMEOUT) as answer:
         return json.load(answer)
 
 
-def column(got, name, table=None):
+def column(got: Any, name: str, table: str | None = None) -> list[float | None]:
     return next(
         p["mean"]
         for p in got["plots"]
@@ -33,7 +34,7 @@ def column(got, name, table=None):
     )
 
 
-def fetch(host, days):
+def fetch(host: str, days: float) -> None:
     base = f"http://{host if ':' in host else f'{host}:{PORT}'}"
     # Readings since the sensor last changed only: before, another's.
     since = (ask(base, "/api/status").get("tempcomp") or {}).get("since") or 0
@@ -44,7 +45,10 @@ def fetch(host, days):
     )
     last = probe["last"]
     first = max(probe["first"], last - days * 86400, since)
-    at, temperature, compensation, frequency = [], [], [], []
+    at: list[float | None] = []
+    temperature: list[float | None] = []
+    compensation: list[float | None] = []
+    frequency: list[float | None] = []
     start = first
     while start < last:
         end = min(last, start + CHUNK * BUCKET)
@@ -88,7 +92,10 @@ def fetch(host, days):
         compensation += column(sensor, "compensation")
         frequency += [by_bucket.get(int((t - origin) // BUCKET)) for t in sensor["at"]]
         start = end
-    array = lambda xs: np.array([np.nan if x is None else x for x in xs], float)
+
+    def array(xs: list[float | None]) -> np.ndarray:
+        return np.array([np.nan if x is None else x for x in xs], float)
+
     name = host.split(":")[0].split(".")[0]
     np.savez(
         f"{name}.npz",
@@ -100,7 +107,7 @@ def fetch(host, days):
     print(f"{name}.npz: {(last - first) / 86400:.1f} days, {len(at)} buckets")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--days", type=float, default=14, help="most days back to fetch (14)"

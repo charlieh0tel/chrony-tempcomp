@@ -11,7 +11,9 @@ SEED = 1
 NOISE = 1e-3
 
 
-def simulate_days(room_ppm_per_degree):
+def simulate_days(
+    room_ppm_per_degree: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """A sensor and a room of different periods, so they can be told apart;
     the crystal 2 min behind the sensor, and the room as given."""
     at = np.arange(0.0, DAYS * room_days.SECONDS_PER_DAY, room_days.STEP)
@@ -26,7 +28,7 @@ def simulate_days(room_ppm_per_degree):
     return at, sensor, room, y
 
 
-def test_day_folds_hold_each_day_out_with_a_margin():
+def test_day_folds_hold_each_day_out_with_a_margin() -> None:
     at = np.arange(0.0, 3 * room_days.SECONDS_PER_DAY, room_days.STEP)
     folds = room_days.day_folds(at, np.ones(len(at), dtype=bool), margin=10)
     assert len(folds) == 3
@@ -37,25 +39,25 @@ def test_day_folds_hold_each_day_out_with_a_margin():
     assert fitted[first - 11] and fitted[last + 11]
 
 
-def test_day_folds_skip_a_short_day():
+def test_day_folds_skip_a_short_day() -> None:
     at = np.arange(0.0, 2 * room_days.SECONDS_PER_DAY, room_days.STEP)
     good = np.ones(len(at), dtype=bool)
     good[: room_days.SECONDS_PER_DAY // room_days.STEP - 1] = False
     assert len(room_days.day_folds(at, good)) == 1
 
 
-def test_day_folds_of_an_empty_span_are_none():
+def test_day_folds_of_an_empty_span_are_none() -> None:
     assert room_days.day_folds(np.empty(0), np.empty(0, dtype=bool)) == []
 
 
-def test_trimmed_fit_ignores_an_outlier():
+def test_trimmed_fit_ignores_an_outlier() -> None:
     x = design(np.arange(100.0), False)
     y = 2.0 + 0.5 * np.arange(100.0) + 1e-3 * np.sin(np.arange(100.0))
     y[50] += 1000.0
     assert room_days.trimmed_fit(x, y) == pytest.approx([2.0, 0.5], abs=1e-2)
 
 
-def test_nested_never_chooses_a_day_by_itself():
+def test_nested_never_chooses_a_day_by_itself() -> None:
     good, bad = np.array([0.1]), np.array([1.0])
     # "a" wins only on day 0: held out, day 0 must take "b", best on the rest.
     table = {"a": [np.array([0.0]), 2 * bad, 2 * bad], "b": [bad, good, good]}
@@ -64,7 +66,7 @@ def test_nested_never_chooses_a_day_by_itself():
     assert errors[0] == bad
 
 
-def test_a_room_that_matters_is_found_on_held_out_days():
+def test_a_room_that_matters_is_found_on_held_out_days() -> None:
     at, sensor, room, y = simulate_days(-0.05)
     folds = room_days.day_folds(at, np.ones(len(at), dtype=bool))
     x = design(lag(sensor, 120.0, room_days.STEP), True)
@@ -75,7 +77,7 @@ def test_a_room_that_matters_is_found_on_held_out_days():
     )
 
 
-def test_a_room_that_does_not_matter_gains_nothing():
+def test_a_room_that_does_not_matter_gains_nothing() -> None:
     at, sensor, room, y = simulate_days(0.0)
     folds = room_days.day_folds(at, np.ones(len(at), dtype=bool))
     x = design(lag(sensor, 120.0, room_days.STEP), True)
@@ -86,7 +88,7 @@ def test_a_room_that_does_not_matter_gains_nothing():
     assert within == pytest.approx(without, rel=0.01)
 
 
-def test_compensation_spans_leave_out_the_day_it_came_on():
+def test_compensation_spans_leave_out_the_day_it_came_on() -> None:
     day = room_days.SECONDS_PER_DAY
     at = np.arange(0.0, 4 * day, room_days.STEP)
     compensation = np.where(at >= 1.5 * day, 0.1, 0.0)
@@ -96,12 +98,12 @@ def test_compensation_spans_leave_out_the_day_it_came_on():
     assert at[spans["compensation on"]].min() >= 2 * day
 
 
-def test_compensation_spans_with_none_keep_everything():
+def test_compensation_spans_with_none_keep_everything() -> None:
     at = np.arange(0.0, 86400.0, room_days.STEP)
     spans = room_days.compensation_spans(at, np.zeros(len(at)))
     assert list(spans) == ["compensation off"]
     assert spans["compensation off"].all()
 
 
-def test_host_name_is_the_file_without_its_directory():
+def test_host_name_is_the_file_without_its_directory() -> None:
     assert room_days.host_name("../data/apu-0.npz") == "apu-0"

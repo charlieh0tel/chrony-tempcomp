@@ -20,21 +20,21 @@ from room_days import STEP
 LINE = (50000.0, 0.0, 1e-4, 0.0)
 
 
-def test_compensation_is_chronys_formula():
+def test_compensation_is_chronys_formula() -> None:
     line = (50000.0, 0.5, 1e-4, -1e-8)
     assert compensation(line, np.array([51000.0]))[0] == pytest.approx(
         0.5 + 1000 * 1e-4 - 1e6 * 1e-8
     )
 
 
-def test_sample_takes_the_last_value_at_or_before():
+def test_sample_takes_the_last_value_at_or_before() -> None:
     times = np.array([0.0, 1.0, 2.0])
     values = np.array([10.0, 11.0, 12.0])
     assert list(sample(times, values, np.array([0.5, 2.0, 5.0]))) == [10, 12, 12]
     assert np.isnan(sample(times, values, np.array([-1.0]))[0])
 
 
-def test_the_filter_follows_a_step_by_its_time_constant():
+def test_the_filter_follows_a_step_by_its_time_constant() -> None:
     times = np.arange(0.0, 2000.0)
     readings = np.where(times < 100, 50000.0, 51000.0)
     ticks, output = filtered(times, readings, Filter(300.0))
@@ -45,7 +45,7 @@ def test_the_filter_follows_a_step_by_its_time_constant():
     assert output[one_tau] == pytest.approx(50000 + 1000 * (1 - np.exp(-1)), abs=20)
 
 
-def test_the_filter_keeps_its_value_through_unread_readings():
+def test_the_filter_keeps_its_value_through_unread_readings() -> None:
     times = np.arange(0.0, 100.0)
     readings = np.full(100, 50000.0)
     readings[40:60] = np.nan
@@ -53,7 +53,7 @@ def test_the_filter_keeps_its_value_through_unread_readings():
     assert not np.isnan(output).any()
 
 
-def test_unfiltered_compensation_is_the_reading_every_interval():
+def test_unfiltered_compensation_is_the_reading_every_interval() -> None:
     times = np.arange(0.0, 120.0)
     readings = 50000.0 + times
     grid = np.array([0.0, 60.0])
@@ -62,11 +62,11 @@ def test_unfiltered_compensation_is_the_reading_every_interval():
     assert comp == pytest.approx([1e-4 * 22.5, 1e-4 * 82.5])
 
 
-def test_holdover_error_is_zero_for_a_constant_error():
+def test_holdover_error_is_zero_for_a_constant_error() -> None:
     assert np.allclose(holdover_errors(np.full(600, 0.03), 1), 0.0)
 
 
-def test_holdover_error_integrates_a_change_after_the_loss():
+def test_holdover_error_integrates_a_change_after_the_loss() -> None:
     error = np.zeros(600)
     error[300:] = 0.01
     held = holdover_errors(error, 1)
@@ -76,12 +76,12 @@ def test_holdover_error_integrates_a_change_after_the_loss():
     assert sorted(held)[:-1] == pytest.approx([0.0] * (len(held) - 1))
 
 
-def test_holdover_skips_spans_mostly_unknown():
+def test_holdover_skips_spans_mostly_unknown() -> None:
     error = np.full(600, np.nan)
     assert len(holdover_errors(error, 1)) == 0
 
 
-def test_the_right_time_constant_beats_the_unfiltered_sensor():
+def test_the_right_time_constant_beats_the_unfiltered_sensor() -> None:
     """A crystal 300 s behind a slowly moving temperature, read through a
     0.5 degree step: the filter at 300 s leaves less than none."""
     rng = np.random.default_rng(1)
@@ -93,15 +93,15 @@ def test_the_right_time_constant_beats_the_unfiltered_sensor():
     minute = ((ticks - grid[0]) // STEP).astype(int)
     own = -np.bincount(minute, compensation(LINE, crystal)) / np.bincount(minute)
 
-    def error(tau):
+    def error(tau: float) -> float:
         comp = minute_compensation(times, readings, LINE, Filter(tau), grid)
         residual = (own + comp)[10:]
-        return np.std(residual)
+        return float(np.std(residual))
 
     assert error(300.0) < 0.5 * error(0.0)
 
 
-def test_steps_are_the_changes_between_chronyds_readings():
+def test_steps_are_the_changes_between_chronyds_readings() -> None:
     times = np.arange(0.0, 120.0)
     readings = 50000.0 + np.where(times < 60, 0.0, 1000.0)
     grid = np.array([0.0, 60.0])
@@ -114,20 +114,20 @@ def test_steps_are_the_changes_between_chronyds_readings():
     assert len(only_first) == 3
 
 
-def test_the_filter_shrinks_the_steps_of_a_jittery_sensor():
+def test_the_filter_shrinks_the_steps_of_a_jittery_sensor() -> None:
     rng = np.random.default_rng(2)
     times = np.arange(0.0, 3 * 3600.0)
     readings = 55000 + np.round(rng.normal(0, 100, len(times)) / 100) * 100
     grid = np.arange(0.0, times[-1], STEP)
     good = np.ones(len(grid), dtype=bool)
 
-    def noise(tau):
-        return np.std(steps(times, readings, LINE, Filter(tau), grid, good))
+    def noise(tau: float) -> float:
+        return float(np.std(steps(times, readings, LINE, Filter(tau), grid, good)))
 
     assert noise(180.0) < 0.1 * noise(0.0)
 
 
-def test_the_fit_finds_the_line_and_favors_the_right_time_constant():
+def test_the_fit_finds_the_line_and_favors_the_right_time_constant() -> None:
     """A crystal 300 s behind three days of moving temperature, read through
     a 0.5 degree step: each time constant's fitted line is near the true
     one, and the fit through 300 s leaves less than through none."""
@@ -144,14 +144,14 @@ def test_the_fit_finds_the_line_and_favors_the_right_time_constant():
     )
     assert lines[Filter(300.0)][2] == pytest.approx(LINE[2], rel=0.02)
 
-    def error(tau):
+    def error(tau: float) -> float:
         residual = frequency + comps[Filter(tau)]
-        return np.nanstd(residual)
+        return float(np.nanstd(residual))
 
     assert error(300.0) < 0.5 * error(0.0)
 
 
-def test_a_blend_follows_a_step_by_both_its_lags():
+def test_a_blend_follows_a_step_by_both_its_lags() -> None:
     times = np.arange(0.0, 4000.0)
     readings = np.where(times < 100, 50000.0, 51000.0)
     ticks, output = filtered(times, readings, Filter(60.0, 1200.0, 0.4))
@@ -162,7 +162,7 @@ def test_a_blend_follows_a_step_by_both_its_lags():
     assert output[at] == pytest.approx(50000 + 1000 * (0.6 * fast + 0.4 * slow), abs=5)
 
 
-def test_a_single_lag_is_unchanged_by_the_blend_machinery():
+def test_a_single_lag_is_unchanged_by_the_blend_machinery() -> None:
     times = np.arange(0.0, 2000.0)
     readings = np.where(times < 100, 50000.0, 51000.0)
     _, single = filtered(times, readings, Filter(300.0))
@@ -170,7 +170,7 @@ def test_a_single_lag_is_unchanged_by_the_blend_machinery():
     assert single == pytest.approx(blend)
 
 
-def test_blends_combine_each_setting_with_the_slow_lag_longer():
+def test_blends_combine_each_setting_with_the_slow_lag_longer() -> None:
     found = blends([60.0, 600.0], [600.0, 1200.0], [0.4])
     assert found == [
         Filter(60.0, 600.0, 0.4),
@@ -179,7 +179,7 @@ def test_blends_combine_each_setting_with_the_slow_lag_longer():
     ]
 
 
-def test_choose_takes_each_days_filter_from_the_other_days():
+def test_choose_takes_each_days_filter_from_the_other_days() -> None:
     """Filter a is best on days 0 and 1, b on day 2: day 2 still gets a,
     chosen on days 0 and 1; days 0 and 1 get a too."""
     day = np.repeat([0, 1, 2], 10)

@@ -213,7 +213,8 @@ def steps(
     minute = ((ticks[1:] - grid[0]) // STEP).astype(int)
     inside = (minute >= 0) & (minute < len(grid))
     inside[inside] &= good[minute[inside]]
-    return change[inside & ~np.isnan(change)]
+    kept: np.ndarray = change[inside & ~np.isnan(change)]
+    return kept
 
 
 def holdover_errors(error: np.ndarray, hours: int) -> np.ndarray:

@@ -22,11 +22,13 @@ Usage: python3 smoothing.py [--step DEGREES] [--run RUN.csv]
 """
 
 import argparse
+import os
 
 import numpy as np
 import pps_step
 import room_days
-from common import cross_validate, design, huber_fit, lag
+from common import cross_validate, design, fit_predictor, huber_fit, lag
+from pps_raw import NANOSECONDS
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import lfilter
 
@@ -53,39 +55,45 @@ FAST_SHARES = [1.0, 0.9, 0.8, 0.6, 0.4, 0.2]
 RUN_BIN = 15.0
 
 
-def forward_backward(u, tau):
+def forward_backward(u: np.ndarray, tau: float) -> np.ndarray:
     """u through a first-order lag each way: the same smoothing, no delay."""
     if tau <= 0:
         return u
     return lag(lag(u, tau, BUCKET)[::-1], tau, BUCKET)[::-1]
 
 
-def delayed(u, tau):
+def delayed(u: np.ndarray, tau: float) -> np.ndarray:
     """u, `tau` seconds late."""
     samples = round(tau / BUCKET)
     return np.concatenate([np.full(samples, u[0]), u[: len(u) - samples]])
 
 
-def two_paths(u, share, slow, step):
+def two_paths(u: np.ndarray, share: float, slow: float, step: float) -> np.ndarray:
     """u, `share` of it through the fast lag and the rest through `slow`
     minutes."""
-    return share * lag(u, FAST_LAG * 60, step) + (1 - share) * lag(u, slow * 60, step)
+    paths: np.ndarray = share * lag(u, FAST_LAG * 60, step) + (1 - share) * lag(
+        u, slow * 60, step
+    )
+    return paths
 
 
-def score(x, y, good):
+def score(x: np.ndarray, y: np.ndarray, good: np.ndarray) -> float:
     """Held-out RMSE of y's curve on x, ppm."""
     X = design(x - x[good].mean(), True)
-    return cross_validate(
-        lambda train: X @ huber_fit(X[train], y[train]), good, y, MARGIN
-    )
+    return cross_validate(fit_predictor(X, y), good, y, MARGIN)
 
 
-def filled(values):
+def filled(values: np.ndarray) -> np.ndarray:
     known = ~np.isnan(values)
-    return np.interp(np.arange(len(values)), np.flatnonzero(known), values[known])
+    result: np.ndarray = np.interp(
+        np.arange(len(values)), np.flatnonzero(known), values[known]
+    )
+    return result
 
 
-def read_host(path, compensation=None):
+def read_host(
+    path: str | os.PathLike[str], compensation: str | None = None
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(temperature in degrees C with its gaps filled, the clock's own
     frequency, which buckets have both), on the whole days with chronyd's
     compensation `compensation` ("off" or "on"), or all."""
@@ -102,7 +110,14 @@ def read_host(path, compensation=None):
     return filled(u), y, ~np.isnan(u) & ~np.isnan(y)
 
 
-def control(u, y, good, step, true_lag, rng):
+def control(
+    u: np.ndarray,
+    y: np.ndarray,
+    good: np.ndarray,
+    step: float,
+    true_lag: float,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
     """What each filter reports for a crystal `true_lag` minutes behind the
     host's slow temperature, with the host's own curve and noise: (causal,
     forward-backward) mean held-out RMSE per TAUS."""
@@ -127,11 +142,11 @@ def control(u, y, good, step, true_lag, rng):
     return causal, smooth
 
 
-def judge_on_run(path):
+def judge_on_run(path: str) -> None:
     """Print each pair of paths' error across a run's load end."""
     run = pps_step.load_run(path)
     bins = pps_step.bin_run(run, RUN_BIN)
-    raw_times = (run.raw_read - run.raw_read[0]) / pps_step.NANOSECONDS
+    raw_times = (run.raw_read - run.raw_read[0]) / NANOSECONDS
     load_off = next(
         start for start, rose in pps_step.find_steps(raw_times, run.busy) if not rose
     )
@@ -152,7 +167,7 @@ def judge_on_run(path):
         print(f"{slow:5d}  " + "".join(cells))
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--step", type=float, default=0.538, help="sensor's step, C")
     parser.add_argument("--run", help="a pps_raw.py run with a load step")

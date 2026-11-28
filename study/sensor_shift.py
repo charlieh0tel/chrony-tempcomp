@@ -53,7 +53,8 @@ def filled(values: np.ndarray) -> np.ndarray:
     """Interpolated across NaN, from its mean: the lag needs it throughout."""
     known = ~np.isnan(values)
     result = np.interp(np.arange(len(values)), np.flatnonzero(known), values[known])
-    return result - result.mean()
+    centered: np.ndarray = result - result.mean()
+    return centered
 
 
 def held_out(x: np.ndarray, y: np.ndarray, folds: Folds) -> float:

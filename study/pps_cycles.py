@@ -119,8 +119,7 @@ def make_series(args: argparse.Namespace) -> None:
         arrays[f"ppm_{width}"] = bins.ppm[known]
         arrays[f"sensor_{width}"] = bins.sensors[sensor][known]
         arrays[f"ambient_{width}"] = np.interp(at, ambient_at, ambient)
-    # The arrays' names are savez's keywords; a dict is what its stub refuses.
-    np.savez_compressed(args.output, allow_pickle=False, **arrays)  # type: ignore[arg-type]
+    np.savez_compressed(args.output, allow_pickle=False, **arrays)
 
 
 def load_series(path: str, width: int) -> Series:
@@ -158,7 +157,8 @@ def fill(values: np.ndarray) -> np.ndarray:
     """From its mean, across unknown bins: the filter needs it throughout."""
     known = ~np.isnan(values)
     filled = np.interp(np.arange(len(values)), np.flatnonzero(known), values[known])
-    return filled - filled.mean()
+    centered: np.ndarray = filled - filled.mean()
+    return centered
 
 
 def score(error: np.ndarray) -> Score:

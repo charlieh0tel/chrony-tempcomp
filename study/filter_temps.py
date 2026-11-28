@@ -17,7 +17,7 @@ from collections import Counter
 ROW = re.compile(rb"(\d{10}),\d+\.\d{3},\d+\.\d{3}")
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("input", nargs="?", default="-", help="temps.csv (default stdin)")
     ap.add_argument(
@@ -27,7 +27,7 @@ def main():
 
     stdin = args.input == "-"
     out = sys.stdout.buffer
-    dropped = Counter()
+    dropped: Counter[str] = Counter()
     last = 0
     with open(
         sys.stdin.fileno() if stdin else args.input, "rb", closefd=not stdin

@@ -11,7 +11,7 @@ BUILD = Path(__file__).with_name("build_deb.sh")
 
 
 @pytest.mark.skipif(shutil.which("dpkg-deb") is None, reason="needs dpkg-deb")
-def test_the_package_holds_the_filter_its_unit_and_its_settings(tmp_path):
+def test_the_package_holds_the_filter_its_unit_and_its_settings(tmp_path: Path) -> None:
     subprocess.run([BUILD, str(tmp_path)], check=True, capture_output=True)
     (package,) = tmp_path.glob("tempcomp-filter_*_all.deb")
     listing = contents(package)
@@ -37,14 +37,14 @@ def test_the_package_holds_the_filter_its_unit_and_its_settings(tmp_path):
         assert (control / script).stat().st_mode & 0o111
 
 
-def contents(package):
+def contents(package: Path) -> str:
     return subprocess.run(
         ["dpkg-deb", "--contents", package], check=True, capture_output=True, text=True
     ).stdout
 
 
 @pytest.mark.skipif(shutil.which("dpkg-deb") is None, reason="needs dpkg-deb")
-def test_a_host_package_holds_its_settings_and_tempcomp_line(tmp_path):
+def test_a_host_package_holds_its_settings_and_tempcomp_line(tmp_path: Path) -> None:
     subprocess.run([BUILD, "--host", "draws", str(tmp_path)], check=True)
     (package,) = tmp_path.glob("tempcomp-filter-draws_*_all.deb")
     listing = contents(package)
@@ -66,13 +66,13 @@ def test_a_host_package_holds_its_settings_and_tempcomp_line(tmp_path):
     assert "@VERSION@" not in fields and "@HOST@" not in fields
 
 
-def test_each_hosts_tempcomp_line_reads_the_filters_output():
+def test_each_hosts_tempcomp_line_reads_the_filters_output() -> None:
     for conf in BUILD.parent.glob("hosts/*/tempcomp-filter.conf"):
         (line,) = [x for x in conf.read_text().splitlines() if x.startswith("tempcomp")]
         assert line.split()[1] == "/run/chrony/tempcomp-filter"
 
 
-def test_the_unit_writes_where_chronyds_apparmor_profile_reads():
+def test_the_unit_writes_where_chronyds_apparmor_profile_reads() -> None:
     unit = BUILD.with_name("tempcomp-filter.service").read_text()
     settings = [line for line in unit.splitlines() if not line.startswith("#")]
     # /run/chrony is 0700, chrony's user's; ProtectSystem=strict would make
